@@ -3,9 +3,13 @@
  * ============================================================
  *  index.php — фронтенд-роутер сайта «Казачья Воля»
  * ============================================================
- *  Работает без .htaccess и без БД: страница передаётся через
- *  параметр ?page=slug (например, index.php?page=repertuar).
- *  Запрос "/" без параметра показывает Главную.
+ *  Поддерживает ЧПУ (красивые адреса через .htaccess):
+ *     /               — главная
+ *     /afisha         — афиша (+ /afisha/export.ics — календарь)
+ *     /news           — новости (+ /news/12 — детальная страница)
+ *     /repertuar …    — страницы из pages.json
+ *  и старый query-формат: index.php?page=slug&id=N
+ *  Сервисные маршруты: /feed.xml (RSS), /sitemap.xml.
  *
  *  Все данные читаются из JSON-файлов папки /data/ через
  *  функции kv_read_json() / helpers из includes/helpers.php.
@@ -14,7 +18,7 @@
 
 declare(strict_types=1);
 
-define('KV_SITE', true); // разрешение на прямой подключение файлов темы (header/footer)
+define('KV_SITE', true); // разрешение на прямое подключение файлов темы (header/footer)
 
 // --- Подключаем конфигурацию и вспомогательные функции ---
 $CONFIG  = require __DIR__ . '/config.php';
@@ -23,10 +27,19 @@ require   __DIR__ . '/includes/blocks.php'; // рендеринг блоков �
 
 $dataDir = $CONFIG['paths']['data'];
 
-// --- Определяем, какую страницу просит посетитель ---
-$pageSlug = kv_slug($_GET['page'] ?? ''); // только латиница/цифры/дефис, не более 60 симв.
+// --- Разбираем путь: ЧПУ (/afisha, /news/12) или query (?page=afisha&id=12) ---
+$pathInfo = trim((string)parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH), '/');
+// при запуске без .htaccess путь может включать index.php — убираем
+$pathInfo = preg_replace('#^index\.php/#', '', $pathInfo);
+$segments = $pathInfo === '' ? [] : explode('/', $pathInfo);
+
+$pageSlug = kv_slug($segments[0] ?? ($_GET['page'] ?? '')); // только латиница/цифры/дефис
+$itemId   = (int)($segments[1] ?? $_GET['id'] ?? 0);       // id новости для /news/12
+if ($itemId === 0 && !empty($_GET['id'])) {
+    $itemId = (int)$_GET['id'];
+}
 if ($pageSlug === '') {
-    $pageSlug = 'home';                   // по умолчанию — Главная
+    $pageSlug = 'home'; // по умолчанию — Главная
 }
 
 // --- Загружаем контент ---
@@ -44,9 +57,11 @@ foreach ($pages as $p) {
     }
 }
 
-// --- Системные страницы (вне pages.json): «Афиша» и «Новости» ---
-if (in_array($pageSlug, ['afisha', 'news'], true)) {
-    $current = ['slug' => $pageSlug, 'title' => $pageSlug === 'afisha' ? 'Афиша' : 'Новости'];
+// --- Системные страницы (вне pages.json): «Афиша», «Новости», «Контакты+форма» ---
+$systemSlugs = ['afisha', 'news', 'contact'];
+if (in_array($pageSlug, $systemSlugs, true)) {
+    $titles = ['afisha' => 'Афиша', 'news' => 'Новости', 'contact' => 'Связаться с нами'];
+    $current = ['slug' => $pageSlug, 'title' => $titles[$pageSlug]];
 }
 
 // Если страницы нет — отдаём 404 и останавливаем работу
@@ -60,18 +75,19 @@ if ($current === null) {
             'kicker'=> 'Ошибка 404',
             'title' => 'Такой страницы нет',
             'text'  => 'Возможно, она была перенесена. Вернитесь на главную или загляните в афишу.',
-            'cta'   => ['text' => 'На главную', 'url' => 'index.php'],
-            'cta2'  => ['text' => 'Афиша', 'url' => 'index.php?page=afisha'],
+            'cta'   => ['text' => 'На главную', 'url' => kv_url('')],
+            'cta2'  => ['text' => 'Афиша', 'url' => kv_url('afisha')],
         ]],
     ];
 }
 
 // Собираем меню из pages.json (поле visible = true) + системные пункты
 $menu = array_values(array_filter($pages, fn($p) => !empty($p['visible'])));
-$menu[] = ['slug' => 'afisha', 'menu_title' => 'Афиша'];
-$menu[] = ['slug' => 'news',   'menu_title' => 'Новости'];
+$menu[] = ['slug' => 'afisha',  'menu_title' => 'Афиша'];
+$menu[] = ['slug' => 'news',    'menu_title' => 'Новости'];
+$menu[] = ['slug' => 'contact', 'menu_title' => 'Контакты'];
 
-// Ближайшие 3 мероприятия из афиши (для главной страницы)
+// Ближайшие мероприятия из афиши (для главной страницы)
 $upcoming = kv_afisha_upcoming($afisha, 3);
 
 // Последние 3 новости
@@ -80,9 +96,20 @@ $latestNews = array_slice($news, 0, 3);
 // Общий контекст для рендера блоков и системных страниц
 $ctx = compact('settings', 'pages', 'news', 'afisha', 'menu', 'upcoming', 'latestNews');
 
+// --- Сервисные маршруты: RSS и sitemap (работают и как /feed.xml, и как ?feed) ---
+$action = $_GET['action'] ?? '';
+if ($pageSlug === 'feed.xml' || $action === 'rss') {
+    require __DIR__ . '/includes/feed.php';
+    exit;
+}
+if ($pageSlug === 'sitemap.xml' || $action === 'sitemap') {
+    require __DIR__ . '/includes/sitemap.php';
+    exit;
+}
+
 // --- Дальнейшая маршрутизация ---
 $systemPage = __DIR__ . '/includes/' . $pageSlug . '.php';
-if (in_array($pageSlug, ['afisha', 'news'], true) && is_file($systemPage)) {
+if (in_array($pageSlug, $systemSlugs, true) && is_file($systemPage)) {
     require $systemPage; // эти шаблоны сами подключают header/footer
     exit;
 }

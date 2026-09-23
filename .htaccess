@@ -1,0 +1,59 @@
+# ============================================================
+#  «Казачья Воля» — конфигурация Apache
+#  ЧПУ, безопасность, кэш и сжатие. Работает в подкаталоге.
+# ============================================================
+
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Запрет прямого доступа к служебным файлам
+  RewriteRule ^(data|includes)/ - [F,L]
+  RewriteRule ^config\.php$ - [F,L]
+  RewriteRule ^newpass\.php$ - [G,L]
+
+  # Статические файлы и существующие документы отдаём как есть
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Красивые адреса -> роутер: /afisha, /news/12, /feed.xml …
+  RewriteRule ^([a-z0-9-]+)(/([0-9]+))?/?$ index.php?page=$1&id=$3 [QSA,L]
+</IfModule>
+
+# --- Защита от hotlink на картинки ---
+<IfModule mod_rewrite.c>
+  RewriteCond %{HTTP_REFERER} !^$
+  RewriteCond %{HTTP_REFERER} !kazakvolya\.ru [NC]
+  RewriteRule \.(jpe?g|png|svg|webp|mp4)$ - [F,NC,L]
+</IfModule>
+
+# --- Сжатие ---
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css application/javascript image/svg+xml application/json
+</IfModule>
+
+# --- Кэш статики ---
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType image/jpeg            "access plus 30 days"
+  ExpiresByType image/png             "access plus 30 days"
+  ExpiresByType image/svg+xml         "access plus 1 year"
+  ExpiresByType image/webp            "access plus 30 days"
+  ExpiresByType text/css              "access plus 7 days"
+  ExpiresByType application/javascript "access plus 7 days"
+  ExpiresByType font/woff2            "access plus 1 year"
+</IfModule>
+
+# --- Безопасные заголовки ---
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+</IfModule>
+
+DirectoryIndex index.php
+ErrorDocument 404 /index.php

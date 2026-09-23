@@ -75,7 +75,7 @@ function kv_render_block(array $b, array $ctx = []): void
                                target="_blank" rel="noopener"><?= kv_e($b['cta']['text']) ?></a>
                         <?php endif; ?>
                         <?php if (!empty($b['cta2']['text'])): ?>
-                            <a class="btn btn-ghost btn-lg" href="<?= strpos((string)($b['cta2']['url'] ?? ''), 'page=afisha') !== false ? '#afisha' : kv_e($b['cta2']['url'] ?? '#') ?>"><?= kv_e($b['cta2']['text']) ?></a>
+                            <a class="btn btn-ghost btn-lg" href="<?= strpos((string)($b['cta2']['url'] ?? ''), 'page=afisha') !== false ? '#afisha' : kv_e($b['cta2']['url'] ?? '#') ?>" data-nav-fix=><?= kv_e($b['cta2']['text']) ?></a>
                         <?php endif; ?>
                     </div>
                     <?php if (!empty($b['facts'])): ?>
@@ -160,7 +160,8 @@ function kv_render_block(array $b, array $ctx = []): void
                     <?php foreach ($b['items'] ?? [] as $gi => $g): ?>
                         <figure class="gallery-item is-reveal<?= ($gi % 3 === 1) ? ' gallery-tall' : '' ?>">
                             <img src="<?= kv_e($g['image'] ?? 'theme/img/placeholder.svg') ?>"
-                                 alt="<?= kv_e($g['alt'] ?? '') ?>" loading="lazy">
+                                 alt="<?= kv_e($g['alt'] ?? '') ?>" loading="lazy"
+                                 data-full="<?= kv_e($g['image'] ?? 'theme/img/placeholder.svg') ?>">
                             <?php if (!empty($g['caption'])): ?><figcaption><span><?= kv_e($g['caption']) ?></span></figcaption><?php endif; ?>
                         </figure>
                     <?php endforeach; ?>
@@ -286,7 +287,7 @@ function kv_render_block(array $b, array $ctx = []): void
                         <?php if (!empty($b['kicker'])): ?><p class="kicker"><?= kv_e($b['kicker']) ?></p><?php endif; ?>
                         <h2 class="section-title display"><?= kv_e($b['title'] ?? 'Афиша') ?></h2>
                     </div>
-                    <a class="link-arrow" href="index.php?page=afisha">Вся афиша →</a>
+                    <a class="link-arrow" href="<?= kv_e(kv_url('afisha')) ?>">Вся афиша →</a>
                 </div>
                 <div class="event-stack" data-stagger>
                     <?php foreach ($ctx['upcoming'] as $a): $d = strtotime($a['date']); ?>
@@ -327,11 +328,11 @@ function kv_render_block(array $b, array $ctx = []): void
                         <?php if (!empty($b['kicker'])): ?><p class="kicker"><?= kv_e($b['kicker']) ?></p><?php endif; ?>
                         <h2 class="section-title display"><?= kv_e($b['title'] ?? 'Новости') ?></h2>
                     </div>
-                    <a class="link-arrow" href="index.php?page=news">Все новости →</a>
+                    <a class="link-arrow" href="<?= kv_e(kv_url('news')) ?>">Все новости →</a>
                 </div>
                 <div class="news-grid" data-stagger>
                     <?php foreach ($ctx['latestNews'] as $n): ?>
-                        <a class="news-card is-reveal" href="index.php?page=news&amp;id=<?= (int)($n['id'] ?? 0) ?>">
+                        <a class="news-card is-reveal" href="<?= kv_e(kv_url('news', (int)($n['id'] ?? 0))) ?>">
                             <img src="<?= kv_e($n['image'] ?? 'theme/img/placeholder.svg') ?>"
                                  alt="<?= kv_e($n['image_alt'] ?? '') ?>" loading="lazy">
                             <div class="news-body">

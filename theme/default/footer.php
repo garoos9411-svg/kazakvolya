@@ -9,13 +9,17 @@
             <?php if (!empty($settings['director'])): ?>
                 <p class="muted small">Директор: <?= kv_e($settings['director']) ?></p>
             <?php endif; ?>
+            <nav class="footer-meta" aria-label="Сервисные ссылки">
+                <a href="<?= kv_e(kv_url('feed.xml')) ?>">RSS-лента</a>
+                <a href="<?= kv_e(kv_url('sitemap.xml')) ?>">Карта сайта</a>
+            </nav>
         </div>
 
         <nav class="footer-col" aria-label="Меню в подвале">
             <h3 class="footer-title">Разделы</h3>
             <ul>
                 <?php foreach ($menu as $m): ?>
-                    <li><a href="index.php?page=<?= kv_e($m['slug']) ?>"><?= kv_e($m['menu_title'] ?? $m['title']) ?></a></li>
+                    <li><a href="<?= kv_e(kv_url($m['slug'])) ?>"><?= kv_e($m['menu_title'] ?? $m['title']) ?></a></li>
                 <?php endforeach; ?>
             </ul>
         </nav>
@@ -59,6 +63,14 @@
     </svg>
 </a>
 
-<script src="theme/js/script.min.js?v=4" defer></script>
+<!-- Lightbox для галерей (собирается из figure.gallery-item) -->
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Просмотр фото" hidden>
+    <button class="lb-close" id="lbClose" aria-label="Закрыть">×</button>
+    <button class="lb-nav lb-prev" id="lbPrev" aria-label="Предыдущее">‹</button>
+    <figure><img id="lbImg" src="" alt=""><figcaption id="lbCap"></figcaption></figure>
+    <button class="lb-nav lb-next" id="lbNext" aria-label="Следующее">›</button>
+</div>
+
+<script src="theme/js/script.min.js?v=5" defer></script>
 </body>
 </html>
