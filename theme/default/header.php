@@ -13,13 +13,14 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700&display=swap&subset=cyrillic" rel="stylesheet">
 
-    <link rel="stylesheet" href="theme/css/style.min.css?v=4">
+    <link rel="stylesheet" href="theme/css/style.min.css?v=5">
     <link rel="icon" href="theme/img/favicon.svg" type="image/svg+xml">
-</head>
-<body class="preload">
 
-<!-- Плавное появление страницы при загрузке (класс снимает script.min.js) -->
-<div class="page-veil" id="pageVeil" aria-hidden="true"></div>
+    <?php /* Главная страница — с полноэкранным тёмным hero: шапка поверх него прозрачная */ ?>
+    <?php $kvDarkHero = ($current['slug'] ?? '') === 'home'; ?>
+    <script>document.documentElement.className+=' js-ready js-enabled';</script>
+</head>
+<body class="<?= !empty($kvDarkHero) ? 'has-dark-hero' : '' ?>">
 
 <!-- Декоративные «плавающие» пятна на фоне всего сайта -->
 <div class="bg-blobs" aria-hidden="true"><i></i><i></i><i></i></div>

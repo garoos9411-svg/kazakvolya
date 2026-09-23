@@ -71,19 +71,43 @@ ul,ol{padding-left:1.2em}
 .btn-lg{min-height:58px;padding:17px 38px;font-size:1.05rem}
 .btn-block{width:100%}
 
-/* ---------- Шапка сайта ---------- */
-.site-header{position:sticky;top:0;z-index:60;
-  background:rgba(250,250,250,.86);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-  border-bottom:1px solid transparent;transition:border-color .3s,box-shadow .3s}
-.site-header.is-scrolled{border-color:var(--line);box-shadow:0 6px 24px -18px rgba(26,26,26,.35)}
+/* ---------- Шапка сайта (стекло поверх контента) ---------- */
+.site-header{position:sticky;top:0;z-index:60;isolation:isolate;
+  background:transparent;border-bottom:1px solid transparent;
+  transition:border-color .35s var(--ease)}
+.site-header::before{content:"";position:absolute;inset:0;z-index:-1;opacity:0;
+  background:rgba(250,250,250,.78);backdrop-filter:blur(18px) saturate(1.6);
+  -webkit-backdrop-filter:blur(18px) saturate(1.6);
+  border-bottom:1px solid rgba(26,26,26,.06);
+  box-shadow:0 10px 30px -24px rgba(26,26,26,.4);
+  transition:opacity .35s var(--ease)}
+.site-header.is-solid::before,.site-header.is-scrolled::before{opacity:1}
 .header-inner{display:flex;align-items:center;justify-content:space-between;
-  min-height:74px;gap:16px}
-.logo{display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--text)}
+  min-height:78px;gap:16px}
+.site-header.is-scrolled .header-inner{min-height:64px}
+.logo{display:flex;align-items:center;gap:12px;text-decoration:none;color:#fff;
+  transition:color .35s}
 .logo-mark{flex:none;transition:transform .4s var(--ease)}
 .logo:hover .logo-mark{transform:rotate(-8deg) scale(1.05)}
 .logo-text{display:flex;flex-direction:column;line-height:1.12}
-.logo-text strong{font-family:var(--font-head);font-size:1.22rem;color:var(--wine);letter-spacing:.01em}
-.logo-text small{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.24em}
+.logo-text strong{font-family:var(--font-head);font-size:1.22rem;color:inherit;
+  letter-spacing:.01em;text-shadow:0 1px 12px rgba(0,0,0,.25);transition:color .35s,text-shadow .35s}
+.logo-text small{font-size:.62rem;color:rgba(255,255,255,.75);text-transform:uppercase;
+  letter-spacing:.24em;transition:color .35s}
+/* когда шапка «стеклянная» (после скролла / на светлых страницах) — тёмный текст */
+.site-header.is-solid .logo,.site-header.is-scrolled .logo{color:var(--text)}
+.site-header.is-solid .logo-text strong,.site-header.is-scrolled .logo-text strong{
+  color:var(--wine);text-shadow:none}
+.site-header.is-solid .logo-text small,.site-header.is-scrolled .logo-text small{color:var(--muted)}
+
+/* Меню-ссылки в прозрачной шапке над hero — белые, со стеклянной «пилюлей» hover */
+.nav-list a{border-radius:999px;transition:color .3s,background .3s}
+.site-header:not(.is-solid):not(.is-scrolled) .nav-list a{color:rgba(255,255,255,.92)}
+.site-header:not(.is-solid):not(.is-scrolled) .nav-list a:hover{background:rgba(255,255,255,.14);color:#fff}
+.site-header:not(.is-solid):not(.is-scrolled) .nav-list a.is-active{color:#fff;background:rgba(212,175,55,.28)}
+.burger span{transition:transform .3s var(--ease),opacity .2s,background .3s}
+.site-header:not(.is-solid):not(.is-scrolled) .burger span{background:#fff}
+.site-header:not(.is-solid):not(.is-scrolled) .btn-ghost{color:#fff;border-color:rgba(255,255,255,.5)}
 
 /* Навигация: на мобильных — полноэкранная шторка */
 .nav-overlay{position:fixed;inset:0;background:rgba(22,19,17,.5);backdrop-filter:blur(3px);
@@ -323,10 +347,7 @@ ul,ol{padding-left:1.2em}
 .fab-call:hover{transform:scale(1.1)}
 @media(min-width:992px){.fab-call{display:none}}
 
-/* ---------- Анимации появления ---------- */
-.reveal-init{opacity:0;transform:translateY(26px);
-  transition:opacity .7s var(--ease),transform .7s var(--ease)}
-.reveal-init.is-visible{opacity:1;transform:none}
+/* ---------- Анимации появления (см. также блок 2026.2 — .js-ready) ---------- */
 .reveal-init.news-card:nth-child(2),.reveal-init.event-row:nth-child(2),
 .reveal-init.number-card:nth-child(2){transition-delay:.08s}
 .reveal-init.news-card:nth-child(3),.reveal-init.event-row:nth-child(3),
@@ -373,12 +394,9 @@ ul,ol{padding-left:1.2em}
    ============================================================ */
 
 /* ---------- Плавное появление всей страницы ---------- */
-body.preload{opacity:0}
-body:not(.preload){animation:pageIn .7s var(--ease) both}
+.js-enabled body{animation:pageIn .7s var(--ease) both}
 @keyframes pageIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-.page-veil{position:fixed;inset:0;z-index:9999;background:var(--bg);
-  transition:opacity .8s ease,visibility .8s;pointer-events:auto}
-.page-veil.is-gone{opacity:0;visibility:hidden;pointer-events:none}
+.page-veil{display:none !important} /* устарело — заменено на CSS-анимацию pageIn */
 
 /* ---------- Декоративные «плавающие» пятна фона сайта ---------- */
 .bg-blobs{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
@@ -403,8 +421,12 @@ body:not(.preload){animation:pageIn .7s var(--ease) both}
   border-color:rgba(255,255,255,.18);color:#fff;box-shadow:0 8px 32px -12px rgba(0,0,0,.5)}
 
 /* ---------- HERO с видеоплеем ---------- */
-.hero{min-height:min(92svh,820px);display:flex;flex-direction:column;justify-content:center;
-  padding:150px 0 96px;color:var(--text);background:transparent}
+.hero{min-height:100svh;display:flex;flex-direction:column;justify-content:center;
+  padding:150px 0 96px;color:#fff;background:transparent}
+/* затемняющая вуаль поверх видео/фото, чтобы белый текст шапки и hero читался */
+.hero::after{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:linear-gradient(180deg,rgba(22,19,17,.55) 0%,rgba(22,19,17,.18) 34%,rgba(22,19,17,.42) 100%)}
+.hero .hero-inner,.hero .marquee,.hero .scroll-hint{z-index:2}
 .hero-bg,.hero-bg-static{position:absolute;inset:-6%;z-index:0;object-fit:cover;width:112%;height:112%;
   background-size:cover;background-position:center;
   animation:kenburns 26s ease-in-out infinite alternate}
@@ -422,16 +444,18 @@ body:not(.preload){animation:pageIn .7s var(--ease) both}
   background:radial-gradient(circle,rgba(128,0,32,.12),transparent 62%);filter:blur(70px)}
 .hero .container,.hero .scroll-hint{position:relative;z-index:3}
 .hero-inner{grid-template-columns:1.1fr .9fr}
-.hero-kicker{display:inline-flex;align-items:center;gap:10px;color:var(--wine);
+/* ===== Hero поверх тёмного фото/видео — светлая типографика ===== */
+.hero-kicker{display:inline-flex;align-items:center;gap:10px;color:var(--gold);
   text-transform:uppercase;letter-spacing:.26em;font-size:.76rem;font-weight:600;margin:0 0 18px}
 .pulse-dot{width:8px;height:8px;border-radius:50%;background:var(--gold);position:relative;flex:none}
 .pulse-dot::after{content:"";position:absolute;inset:-5px;border-radius:50%;
   border:1px solid var(--gold);animation:pulse 2s var(--ease) infinite}
 @keyframes pulse{0%{transform:scale(.5);opacity:1}100%{transform:scale(1.6);opacity:0}}
-.hero-title{font-size:clamp(2.8rem,6.6vw,4.9rem);color:var(--text);text-wrap:balance}
-.hero-title em{font-style:italic;color:var(--wine)}
-.hero-sub{color:#45413c;max-width:52ch}
-.hero-facts li{color:var(--muted)}
+.hero-title{font-size:clamp(2.8rem,6.6vw,4.9rem);color:#fff;text-wrap:balance;
+  text-shadow:0 2px 30px rgba(0,0,0,.35)}
+.hero-title em{font-style:italic;color:var(--gold)}
+.hero-sub{color:rgba(255,255,255,.88);max-width:52ch}
+.hero-facts li{color:rgba(255,255,255,.8)}
 .hero-media{perspective:1000px}
 .floaty{animation:floaty 7s ease-in-out infinite}
 @keyframes floaty{0%,100%{transform:translateY(0) rotate(1.5deg)}50%{transform:translateY(-14px) rotate(.5deg)}}
@@ -441,20 +465,38 @@ body:not(.preload){animation:pageIn .7s var(--ease) both}
 .tilt{transform-style:preserve-3d}
 .hero-badge{position:absolute;left:-26px;bottom:34px;padding:12px 20px;border-radius:999px;
   font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;font-weight:600}
-.hero-badge span{color:var(--wine)}
+.hero-badge span{font-family:var(--font-head);font-style:italic;color:#fff;text-transform:none;letter-spacing:.02em}
 .scroll-hint{position:absolute;left:50%;bottom:86px;transform:translateX(-50%);z-index:4}
-.mouse{display:block;width:26px;height:42px;border:1.5px solid rgba(26,26,26,.35);
+.mouse{display:block;width:26px;height:42px;border:1.5px solid rgba(255,255,255,.55);
   border-radius:14px;position:relative}
 .mouse i{position:absolute;left:50%;top:8px;width:4px;height:8px;margin-left:-2px;
   border-radius:4px;background:var(--gold);animation:wheel 1.8s var(--ease) infinite}
 @keyframes wheel{0%{transform:translateY(0);opacity:1}70%{transform:translateY(14px);opacity:0}100%{opacity:0}}
+/* кнопки во втором ряду hero — стеклянные пилюли поверх видео */
+.hero-actions .btn-primary{box-shadow:0 14px 34px -12px rgba(128,0,32,.75)}
+.hero-actions .btn-ghost{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.45);
+  color:#fff;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.hero-actions .btn-ghost:hover{background:rgba(255,255,255,.2);border-color:#fff;color:#fff}
+/* бегущая строка внизу hero — тёмное стекло с золотом */
+.hero .marquee{background:rgba(22,19,17,.45);border-top:1px solid rgba(255,255,255,.14);
+  border-bottom:0;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.hero .marquee-track span{color:rgba(255,255,255,.75)}
 
-/* ---------- Страницы-заголовки с паттерном ---------- */
+/* ---------- Страницы-заголовки с паттерном (светлые — шапка сразу «стеклянная») ---------- */
 .page-hero{position:relative;overflow:hidden;color:var(--text);padding:150px 0 84px;
   background:linear-gradient(180deg,#F5F1EA 0%,#FAFAFA 100%)}
 .page-hero .kicker{color:var(--wine)}
 .page-hero-title{color:var(--text);font-size:clamp(2.6rem,7vw,4.4rem)}
 .page-hero .hero-sub{color:#45413c}
+/* на светлых страницах hero нет → шапка всегда с подложкой и тёмным текстом */
+body:not(.has-dark-hero) .site-header::before{opacity:1}
+body:not(.has-dark-hero) .site-header .logo{color:var(--text)}
+body:not(.has-dark-hero) .site-header .logo-text strong{color:var(--wine);text-shadow:none}
+body:not(.has-dark-hero) .site-header .logo-text small{color:var(--muted)}
+body:not(.has-dark-hero) .site-header .nav-list a{color:var(--text)}
+body:not(.has-dark-hero) .site-header .nav-list a:hover{background:rgba(128,0,32,.06);color:var(--wine)}
+body:not(.has-dark-hero) .site-header .nav-list a.is-active{color:var(--wine);background:rgba(128,0,32,.09)}
+body:not(.has-dark-hero) .site-header .burger span{background:var(--text)}
 .ph-pattern{position:absolute;inset:0;opacity:.5;
   background-image:linear-gradient(rgba(128,0,32,.05) 1px,transparent 1px),
                    linear-gradient(90deg,rgba(128,0,32,.05) 1px,transparent 1px);
@@ -465,12 +507,18 @@ body:not(.preload){animation:pageIn .7s var(--ease) both}
   background:radial-gradient(circle,rgba(212,175,55,.3),transparent 60%);filter:blur(46px)}
 
 /* ---------- Reveal-анимации ---------- */
-.reveal-init{opacity:0;transform:translateY(26px);
-  transition:opacity .8s var(--ease),transform .8s var(--ease)}
-.reveal-init.is-visible{opacity:1;transform:none}
-.nav-list a.is-reveal{opacity:0;transform:translateX(26px);
-  transition:opacity .45s var(--ease),transform .45s var(--ease)}
-.nav-list a.is-reveal.in{opacity:1;transform:none}
+/* ВАЖНО: анимация появления включается ТОЛЬКО когда JS добавил класс
+   .js-ready телу страницы. Без JS / до загрузки скриптов всё видимо.
+   Это исключает «белые квадраты» и невидимое меню. */
+.reveal-init{transition:opacity .8s var(--ease),transform .8s var(--ease)}
+.js-ready .reveal-init{opacity:0;transform:translateY(26px)}
+.js-ready .reveal-init.is-visible{opacity:1;transform:none}
+.nav-list a.is-reveal{transition:opacity .45s var(--ease),transform .45s var(--ease)}
+.js-ready .nav-list a.is-reveal{opacity:1;transform:none} /* на десктопе всегда видимы */
+@media(max-width:991px){
+  .js-ready .site-nav.is-open .nav-list a.is-reveal{opacity:0;transform:translateX(26px)}
+  .js-ready .site-nav.is-open .nav-list a.is-reveal.in{opacity:1;transform:none}
+}
 
 /* ---------- Бегущая строка на тёмном стекле ---------- */
 .marquee{position:relative;z-index:3;margin-top:64px;border-top:1px solid var(--line);
