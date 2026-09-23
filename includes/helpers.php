@@ -215,3 +215,96 @@ function kv_credentials(string $credFile): array
     }
     return $cred;
 }
+
+/* ============================================================
+   URL-ХЕЛПЕРЫ (ЧПУ + canonical + OG)
+   ============================================================ */
+
+/** Базовый URL сайта без завершающего слэша (автоопределение). */
+function kv_base_url(): string
+{
+    static $base = null;
+    if ($base !== null) return $base;
+    $script = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/'));
+    $base   = ($script === '/' || $script === '.') ? '' : rtrim($script, '/');
+    return $base;
+}
+
+/**
+ * Человекочитаемый URL страницы: /afisha, /news, /news/12.
+ * При включённом ЧПУ (.htaccess) даёт красивые адреса, иначе — query-формат.
+ */
+function kv_url(string $page = '', int $id = 0): string
+{
+    $base = kv_base_url();
+    if ($page === '' || $page === 'home') {
+        return $base . '/';
+    }
+    $url = $base . '/' . rawurlencode($page);
+    if ($id > 0) {
+        $url .= '/' . $id;
+    }
+    return $url;
+}
+
+/** Canonical текущего запроса (абсолютный). */
+function kv_canonical(string $page = '', int $id = 0): string
+{
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host   = preg_replace('/[^A-Za-z0-9.\-]/', '', (string)($_SERVER['HTTP_HOST'] ?? 'localhost'));
+    return $scheme . '://' . $host . kv_url($page, $id);
+}
+
+/* ============================================================
+   RATE-LIMITING ВХОДА В АДМИНКУ (по IP, переживает перезапуск сессии)
+   ============================================================ */
+
+/**
+ * Проверить/зафиксировать попытку входа для текущего IP.
+ * Возвращает секунды до разблокировки (0 = входить можно).
+ */
+function kv_login_throttle(string $dataDir, int $maxTries = 5, int $lockTime = 300, bool $register = false): int
+{
+    $ip     = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    $file   = rtrim($dataDir, '/\\') . '/login_attempts.json';
+    $attempts = kv_read_json($file);
+    $now    = time();
+    $rec    = $attempts[$ip] ?? ['count' => 0, 'locked_until' => 0, 'ts' => $now];
+
+    // окно накопления ошибок — 10 минут
+    if ($now - (int)$rec['ts'] > 600) {
+        $rec = ['count' => 0, 'locked_until' => 0, 'ts' => $now];
+    }
+    if ((int)$rec['locked_until'] > $now) {
+        return (int)$rec['locked_until'] - $now;
+    }
+    if ($register) {
+        $rec['count']++;
+        $rec['ts'] = $now;
+        if ($rec['count'] >= $maxTries) {
+            $rec['locked_until'] = $now + $lockTime;
+            $rec['count'] = 0;
+        }
+        // чистим старые записи, чтобы файл не разрастался
+        foreach ($attempts as $k => $v) {
+            if (($v['ts'] ?? 0) < $now - 1800) unset($attempts[$k]);
+        }
+        $attempts[$ip] = $rec;
+        kv_write_json($file, $attempts);
+        @chmod($file, 0640);
+        if ((int)($attempts[$ip]['locked_until'] ?? 0) > $now) {
+            return (int)$attempts[$ip]['locked_until'] - $now;
+        }
+    }
+    return 0;
+}
+
+/** Сброс счётчика неудачных входов для IP после успешного логина. */
+function kv_login_throttle_reset(string $dataDir): void
+{
+    $ip   = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    $file = rtrim($dataDir, '/\\') . '/login_attempts.json';
+    $attempts = kv_read_json($file);
+    unset($attempts[$ip]);
+    kv_write_json($file, $attempts);
+}

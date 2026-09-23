@@ -56,6 +56,11 @@ $requiresLogout = !empty($CRED['force_logout']);
 
 /* ---------- Вход: проверка лимита попыток ---------- */
 $lockedUntil = (int)($_SESSION['login_locked_until'] ?? 0);
+// IP-rate-limit переживает сброс куки/сессии (kv_login_throttle — в helpers.php)
+$ipLockLeft  = kv_login_throttle($dataDir,
+    (int)($CONFIG['security']['max_login_tries'] ?? 5),
+    (int)($CONFIG['security']['lock_time'] ?? 300));
+if ($ipLockLeft > 0) { $lockedUntil = max($lockedUntil, time() + $ipLockLeft); }
 $isLocked    = time() < $lockedUntil;
 
 /* ---------- Вспомогательные функции админки ---------- */
@@ -238,7 +243,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (hash_equals($CRED['user'], $u) && password_verify($p, $CRED['hash'])) {
                 session_regenerate_id(true);
                 $_SESSION['kv_admin'] = true;
-                unset($_SESSION['login_attempts']);
+                unset($_SESSION['login_attempts'], $_SESSION['login_locked_until']);
+                kv_login_throttle_reset($dataDir);
                 if (!empty($CRED['force_logout'])) {
                     $CRED['force_logout'] = false;
                     kv_write_json($credFile, $CRED);
@@ -253,6 +259,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['login_locked_until'] = time() + $lockTime;
                 $_SESSION['login_attempts'] = 0;
             }
+            // дублируем блокировку по IP — её нельзя сбросить очисткой cookies
+            kv_login_throttle($dataDir, $maxTries, $lockTime, true);
             kv_flash('error', 'Неверный логин или пароль.');
         }
         header('Location: admin.php'); exit;
@@ -744,8 +752,13 @@ button:disabled{filter:grayscale(.6) brightness(.7);cursor:not-allowed;transform
     <p class="sub">Панель управления сайтом</p>
     <?php foreach ($flashes as $f): ?><div class="msg <?= $f['type']==='error'?'err':'ok' ?>"><?= a_e($f['message']) ?></div><?php endforeach; ?>
     <?php if ($isLocked): ?>
-        <div class="lock">Превышено число попыток входа. Попробуйте через
-        <?= ceil(($lockedUntil - time()) / 60) ?> мин.</div>
+        <div class="lock" id="lockBox">Превышено число попыток входа. Попробуйте через
+        <span id="lockTimer"><?= max(1, (int)ceil(($lockedUntil - time()) / 60)) ?></span> мин.</div>
+        <script>
+        (function(){var t=<?= max(0,(int)($lockedUntil-time())) ?>,el=document.getElementById('lockTimer');
+        if(!el||t<=0)return;var m=setInterval(function(){t--;if(t<=0){clearInterval(m);location.reload();return;}
+        el.textContent=Math.max(1,Math.ceil(t/60));},1000);})();
+        </script>
     <?php endif; ?>
     <label for="u">Логин</label>
     <input id="u" name="username" placeholder="admin" autocomplete="username" required autofocus>
