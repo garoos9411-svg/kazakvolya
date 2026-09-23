@@ -45,9 +45,9 @@ function kv_render_block(array $b, array $ctx = []): void
 
     switch ($type) {
 
-        /* ---------- HERO: главный экран (видеоплей + параллакс-пятна) ---------- */
+        /* ---------- HERO: главный экран (видео/фото-фон + параллакс-пятна) ---------- */
         case 'hero': ?>
-        <section class="hero<?= ($heroVideo = kv_clean_url($b['video_url'] ?? '')) !== '' ? ' has-video' : '' ?>">
+        <section class="hero<?= ($heroVideo = kv_clean_url($b['video_url'] ?? '')) !== '' ? ' has-video' : '' ?>" id="hero">
             <?php if (($heroVideo ?? '') !== ''): ?>
             <!-- Фоновое видео hero: без звука, в цикле; при prefers-reduced-motion JS его остановит -->
             <video class="hero-bg" autoplay muted loop playsinline preload="metadata" tabindex="-1" aria-hidden="true"
@@ -56,7 +56,10 @@ function kv_render_block(array $b, array $ctx = []): void
             </video>
             <div class="hero-shade-light" aria-hidden="true"></div>
             <?php else: ?>
-            <!-- Слоистый «оживший» фон: золотая сетка + дрейфующие пятна + мягкая виньетка -->
+            <!-- Слоистый «оживший» фон: кинематографичное фото (Ken Burns) + сетка + орбы -->
+            <?php if (!empty($b['image'])): ?>
+                <img class="hero-bg-static" src="<?= kv_e($b['image']) ?>" alt="" aria-hidden="true">
+            <?php endif; ?>
             <div class="hero-grid" aria-hidden="true"></div>
             <?php endif; ?>
             <i class="orb orb-gold hero-orb-1" data-parallax="0.06" aria-hidden="true"></i>
@@ -72,7 +75,7 @@ function kv_render_block(array $b, array $ctx = []): void
                                target="_blank" rel="noopener"><?= kv_e($b['cta']['text']) ?></a>
                         <?php endif; ?>
                         <?php if (!empty($b['cta2']['text'])): ?>
-                            <a class="btn btn-ghost btn-lg" href="<?= kv_e($b['cta2']['url'] ?? '#') ?>"><?= kv_e($b['cta2']['text']) ?></a>
+                            <a class="btn btn-ghost btn-lg" href="<?= strpos((string)($b['cta2']['url'] ?? ''), 'page=afisha') !== false ? '#afisha' : kv_e($b['cta2']['url'] ?? '#') ?>"><?= kv_e($b['cta2']['text']) ?></a>
                         <?php endif; ?>
                     </div>
                     <?php if (!empty($b['facts'])): ?>
@@ -90,9 +93,10 @@ function kv_render_block(array $b, array $ctx = []): void
                     <div class="hero-badge glass" aria-hidden="true"><span>с 1991 · Волгоград</span></div>
                 </div>
             </div>
-            <a class="scroll-hint" href="#main" aria-label="Прокрутить вниз"><span class="mouse"><i></i></span></a>
+            <a class="scroll-hint" href="#after-hero" aria-label="Прокрутить вниз"><span class="mouse"><i></i></span></a>
             <div class="marquee" aria-hidden="true">
-                <div class="marquee-track"><span><?= kv_e($b['marquee'] ?? 'Донская слава ✦ Казачий разъезд ✦ Святой Дон ✦ Колядки Дона ✦ ') ?></span><span><?= kv_e($b['marquee'] ?? 'Донская слава ✦ Казачий разъезд ✦ Святой Дон ✦ Колядки Дона ✦ ') ?></span></div>
+                <?php $mq = ($b['marquee'] ?? '') !== '' ? $b['marquee'] : 'Донская слава ✦ Казачий разъезд ✦ Святой Дон ✦ Колядки Дона ✦ '; ?>
+                <div class="marquee-track"><span><?= kv_e($mq) ?></span><span><?= kv_e($mq) ?></span></div>
             </div>
         </section>
         <?php break;
@@ -275,7 +279,7 @@ function kv_render_block(array $b, array $ctx = []): void
 
         /* ---------- AFISHA: ближайшие концерты (данные из afisha.json) ---------- */
         case 'afisha': ?>
-        <section class="section<?= $pad ?><?= $shade ?>">
+        <section class="section<?= $pad ?><?= $shade ?>" id="afisha">
             <div class="container">
                 <div class="section-head">
                     <div>

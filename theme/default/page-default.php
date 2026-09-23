@@ -16,7 +16,11 @@ require __DIR__ . '/header.php';
 <div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
 <?php
 
-foreach ($current['blocks'] ?? [] as $b) {
+foreach ($current['blocks'] ?? [] as $bi => $b) {
+    /* якорь сразу после hero — на него ссылается подсказка «прокрутить вниз» */
+    if ($bi > 0 && ($current['blocks'][$bi - 1]['type'] ?? '') === 'hero') {
+        echo '<span id="after-hero" aria-hidden="true"></span>';
+    }
     kv_render_block($b, $ctx);
 }
 
