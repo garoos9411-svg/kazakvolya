@@ -247,8 +247,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 header('Location: admin.php'); exit;
             }
             $_SESSION['login_attempts'] = ($_SESSION['login_attempts'] ?? 0) + 1;
-            if ($_SESSION['login_attempts'] >= $CONFIG['security']['max_login_attempts']) {
-                $_SESSION['login_locked_until'] = time() + $CONFIG['security']['lock_time'];
+            $maxTries = (int)($CONFIG['security']['max_login_tries'] ?? $CONFIG['security']['max_login_attempts'] ?? 5);
+            $lockTime = (int)($CONFIG['security']['lock_time'] ?? 300);
+            if ($_SESSION['login_attempts'] >= $maxTries) {
+                $_SESSION['login_locked_until'] = time() + $lockTime;
                 $_SESSION['login_attempts'] = 0;
             }
             kv_flash('error', 'Неверный логин или пароль.');
@@ -429,21 +431,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: admin.php?section=settings'); exit;
     }
 
-    /* ---- смена пароля ---- */
+    /* ---- смена пароля / логина ---- */
     if ($action === 'password') {
         $cur = (string)($_POST['current'] ?? '');
         $new = (string)($_POST['new_password'] ?? '');
         $conf= (string)($_POST['new_confirm'] ?? '');
-        if (!password_verify($cur, $CRED['hash'])) {
+        // новый логин (если поле заполнено и отличается — меняем)
+        $newUser = a_str($_POST['username'] ?? $CRED['user'], 50);
+        if ($newUser === '') $newUser = $CRED['user'];
+
+        // Разблокировка после серии неудачных попыток входа
+        unset($_SESSION['login_locked_until'], $_SESSION['login_attempts']);
+
+        if (!empty($CRED['force_logout'])) {
+            // Пароль был сброшен к заводскому (admin123) — сначала задайте новый!
+            if (strlen($new) >= 8 && $new === $conf && $new !== 'admin123') {
+                $CRED['user'] = $newUser;
+                $CRED['hash'] = password_hash($new, PASSWORD_DEFAULT);
+                unset($CRED['force_logout']);
+                kv_write_json($credFile, $CRED);
+                kv_flash('success', 'Пароль установлен. Заводский режим отключён.');
+            } else {
+                kv_flash('error', 'Обнаружен временный заводский пароль (admin123). Сначала задайте новый пароль (не короче 8 символов, не «admin123»), и только потом меняйте логин.');
+            }
+        } elseif (!password_verify($cur, $CRED['hash'])) {
             kv_flash('error', 'Текущий пароль указан неверно.');
+        } elseif ($new === '' && $newUser !== $CRED['user']) {
+            // меняем только логин, пароль остаётся прежний
+            $CRED['user'] = $newUser;
+            kv_write_json($credFile, $CRED);
+            kv_flash('success', 'Логин изменён на «' . $newUser . '».');
         } elseif (strlen($new) < 8) {
             kv_flash('error', 'Новый пароль должен быть не короче 8 символов.');
         } elseif ($new !== $conf) {
             kv_flash('error', 'Пароли не совпадают.');
         } else {
+            $CRED['user'] = $newUser;
             $CRED['hash'] = password_hash($new, PASSWORD_DEFAULT);
             kv_write_json($credFile, $CRED);
-            kv_flash('success', 'Пароль изменён.');
+            kv_flash('success', 'Данные для входа обновлены.');
         }
         header('Location: admin.php?section=settings'); exit;
     }
@@ -1141,16 +1167,24 @@ details summary{cursor:pointer;font-weight:600;color:var(--wine);padding:6px 0}
             </form>
         </div>
         <div class="panel">
-            <h2>Смена пароля</h2>
+            <h2>Данные для входа</h2>
+            <?php if (!empty($CRED['force_logout'])): ?>
+                <p class="hint" style="color:#a11235;font-weight:600;margin-bottom:10px">⚠ Файл data/credentials.json был повреждён или удалён — включён временный заводский режим: логин «admin», пароль «admin123». Задайте новый пароль прямо сейчас (поле «Текущий пароль» оставьте как есть).</p>
+            <?php endif; ?>
             <form method="post">
                 <input type="hidden" name="csrf" value="<?= a_e($csrf) ?>">
                 <input type="hidden" name="action" value="password">
-                <label class="f">Текущий пароль</label><input type="password" name="current" required style="margin-bottom:10px">
-                <label class="f">Новый пароль (мин. 8 символов)</label><input type="password" name="new_password" minlength="8" required style="margin-bottom:10px">
-                <label class="f">Повторите новый</label><input type="password" name="new_confirm" minlength="8" required style="margin-bottom:14px">
-                <button class="btn" type="submit">Изменить пароль</button>
+                <label class="f">Логин</label><input type="text" name="username" value="<?= a_e($CRED['user']) ?>" autocomplete="username" style="margin-bottom:10px">
+                <?php if (empty($CRED['force_logout'])): ?>
+                    <label class="f">Текущий пароль</label><input type="password" name="current" required autocomplete="current-password" style="margin-bottom:10px">
+                <?php else: ?>
+                    <input type="hidden" name="current" value="admin123">
+                <?php endif; ?>
+                <label class="f">Новый пароль (мин. 8 символов, пусто — не менять)</label><input type="password" name="new_password" minlength="8" autocomplete="new-password" style="margin-bottom:10px">
+                <label class="f">Повторите новый</label><input type="password" name="new_confirm" minlength="8" autocomplete="new-password" style="margin-bottom:14px">
+                <button class="btn" type="submit">Сохранить доступ</button>
             </form>
-            <p class="hint" style="margin-top:16px">Хэш пароля хранится в <span class="mono">data/credentials.json</span> и не попадает в исходный код.</p>
+            <p class="hint" style="margin-top:16px">Хэш пароля хранится в <span class="mono">data/credentials.json</span> и не попадает в исходный код. Если файл удалить на сервере, доступ станет «admin / admin123» — сразу смените пароль.</p>
         </div>
     </div>
 <?php else: ?>
