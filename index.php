@@ -19,6 +19,7 @@ define('KV_SITE', true); // разрешение на прямой подклю�
 // --- Подключаем конфигурацию и вспомогательные функции ---
 $CONFIG  = require __DIR__ . '/config.php';
 require   __DIR__ . '/includes/helpers.php';
+require   __DIR__ . '/includes/blocks.php'; // рендеринг блоков страниц
 
 $dataDir = $CONFIG['paths']['data'];
 
@@ -54,7 +55,14 @@ if ($current === null) {
     $current = [
         'slug'  => '404',
         'title' => 'Страница не найдена',
-        'blocks'=> [],
+        'blocks'=> [[
+            'type'  => 'cta',
+            'kicker'=> 'Ошибка 404',
+            'title' => 'Такой страницы нет',
+            'text'  => 'Возможно, она была перенесена. Вернитесь на главную или загляните в афишу.',
+            'cta'   => ['text' => 'На главную', 'url' => 'index.php'],
+            'cta2'  => ['text' => 'Афиша', 'url' => 'index.php?page=afisha'],
+        ]],
     ];
 }
 
@@ -63,6 +71,15 @@ $menu = array_values(array_filter($pages, fn($p) => !empty($p['visible'])));
 $menu[] = ['slug' => 'afisha', 'menu_title' => 'Афиша'];
 $menu[] = ['slug' => 'news',   'menu_title' => 'Новости'];
 
+// Ближайшие 3 мероприятия из афиши (для главной страницы)
+$upcoming = kv_afisha_upcoming($afisha, 3);
+
+// Последние 3 новости
+$latestNews = array_slice($news, 0, 3);
+
+// Общий контекст для рендера блоков и системных страниц
+$ctx = compact('settings', 'pages', 'news', 'afisha', 'menu', 'upcoming', 'latestNews');
+
 // --- Дальнейшая маршрутизация ---
 $systemPage = __DIR__ . '/includes/' . $pageSlug . '.php';
 if (in_array($pageSlug, ['afisha', 'news'], true) && is_file($systemPage)) {
@@ -70,17 +87,5 @@ if (in_array($pageSlug, ['afisha', 'news'], true) && is_file($systemPage)) {
     exit;
 }
 
-// Ближайшие 3 мероприятия из афиши (для главной страницы)
-$upcoming = kv_afisha_upcoming($afisha, 3);
-
-// Последние 3 новости
-$latestNews = array_slice($news, 0, 3);
-
-// Шаблон страницы: theme/<имя>/page-<slug>.php, если есть; иначе page-default.php
-$tpl = sprintf('%s/%s/page-%s.php', $CONFIG['paths']['theme'], $CONFIG['site']['theme'], $pageSlug);
-if (!is_file($tpl)) {
-    $tpl = sprintf('%s/%s/page-default.php', $CONFIG['paths']['theme'], $CONFIG['site']['theme']);
-}
-
-// --- Выводим страницу (шаблон сам подключает header/footer) ---
-require $tpl;
+// Все страницы (включая 404) рендерятся единым блочным шаблоном
+require sprintf('%s/%s/page-default.php', $CONFIG['paths']['theme'], $CONFIG['site']['theme']);

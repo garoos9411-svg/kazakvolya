@@ -1,1 +1,7 @@
-(empty)
+# Environment
+.env
+.env.local
+*.env.*
+
+# Sensitive Data
+data/credentials.json

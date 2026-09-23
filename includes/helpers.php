@@ -90,17 +90,25 @@ function kv_clean_url(mixed $v): string
 }
 
 /**
+ * Название месяца по-русски (родительный падеж): 10 → «октября».
+ */
+function kv_month_ru(int $m): string
+{
+    $months = [1=>'января','февраля','марта','апреля','мая','июня',
+               'июля','августа','сентября','октября','ноября','декабря'];
+    return $months[$m] ?? '';
+}
+
+/**
  * Форматирование даты «2026-10-05» → «5 октября 2026».
  */
 function kv_date_ru(string $iso): string
 {
-    $months = [1=>'января','февраля','марта','апреля','мая','июня',
-               'июля','августа','сентября','октября','ноября','декабря'];
     $ts = strtotime($iso);
     if (!$ts) {
         return kv_e($iso);
     }
-    return date('j', $ts) . ' ' . $months[(int) date('n', $ts)] . ' ' . date('Y', $ts);
+    return date('j', $ts) . ' ' . kv_month_ru((int) date('n', $ts)) . ' ' . date('Y', $ts);
 }
 
 /**

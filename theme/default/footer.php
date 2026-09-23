@@ -2,15 +2,23 @@
 </main>
 
 <footer class="site-footer">
-    <div class="container footer-grid">
-
-        <div class="footer-col">
-            <h3 class="footer-title"><?= kv_e($settings['site_name'] ?? 'Казачья Воля') ?></h3>
-            <p><?= kv_e($settings['tagline'] ?? '') ?></p>
+    <div class="container footer-top">
+        <div class="footer-brand">
+            <p class="footer-logo display">Казачья Воля</p>
+            <p class="muted"><?= kv_e($settings['tagline'] ?? '') ?></p>
             <?php if (!empty($settings['director'])): ?>
-                <p class="muted">Директор: <?= kv_e($settings['director']) ?></p>
+                <p class="muted small">Директор: <?= kv_e($settings['director']) ?></p>
             <?php endif; ?>
         </div>
+
+        <nav class="footer-col" aria-label="Меню в подвале">
+            <h3 class="footer-title">Разделы</h3>
+            <ul>
+                <?php foreach ($menu as $m): ?>
+                    <li><a href="index.php?page=<?= kv_e($m['slug']) ?>"><?= kv_e($m['menu_title'] ?? $m['title']) ?></a></li>
+                <?php endforeach; ?>
+            </ul>
+        </nav>
 
         <div class="footer-col">
             <h3 class="footer-title">Контакты</h3>
@@ -19,7 +27,7 @@
                 <a href="tel:<?= kv_e($settings['phone_raw'] ?? '') ?>"><?= kv_e($settings['phone'] ?? '') ?></a><br>
                 <a href="mailto:<?= kv_e($settings['email'] ?? '') ?>"><?= kv_e($settings['email'] ?? '') ?></a>
             </address>
-            <p class="muted"><?= kv_e($settings['hours'] ?? '') ?></p>
+            <p class="muted small"><?= kv_e($settings['hours'] ?? '') ?></p>
         </div>
 
         <div class="footer-col">
@@ -28,9 +36,10 @@
                 <a class="social-link" href="<?= kv_e($settings['vk_url']) ?>"
                    target="_blank" rel="noopener">ВКонтакте →</a>
             <?php endif; ?>
-            <a class="btn btn-secondary footer-btn" href="index.php?page=kontakty">Позвонить</a>
+            <a class="btn btn-primary footer-btn"
+               href="<?= kv_e($settings['ticket_url'] ?? '#') ?>"
+               target="_blank" rel="noopener">Купить билет</a>
         </div>
-
     </div>
 
     <div class="container footer-bottom">
@@ -46,6 +55,6 @@
     </svg>
 </a>
 
-<script src="theme/js/script.min.js?v=1" defer></script>
+<script src="theme/js/script.min.js?v=2" defer></script>
 </body>
 </html>

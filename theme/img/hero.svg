@@ -1,9 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480">
-<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-<stop offset="0" stop-color="#800020"/><stop offset="1" stop-color="#4d0013"/></linearGradient></defs>
-<rect width="640" height="480" fill="url(#g)"/>
-<circle cx="640" cy="0" r="240" fill="#D4AF37" opacity="0.12"/>
-<path d="M260 280 L320 190 L380 280 Z" fill="#FAFAFA" opacity="0.18"/>
-<text x="640/2" y="452" font-family="Georgia,serif" font-size="26" fill="#F5E9C9" text-anchor="middle">Сцена ансамбля</text>
-<text x="640/2" y="40" font-family="Arial" font-size="14" fill="#D4AF37" text-anchor="middle" letter-spacing="4">KAZAKVOLYA.RU</text>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1100" viewBox="0 0 900 1100"><rect width="900" height="1100" fill="#3A2A22"/><circle cx="853" cy="304" r="175" fill="#E9DFB8" opacity="0.09"/><circle cx="525" cy="700" r="220" fill="#D4AF37" opacity="0.14"/><circle cx="63" cy="70" r="277" fill="#E9DFB8" opacity="0.1"/><circle cx="201" cy="483" r="418" fill="#E9DFB8" opacity="0.16"/><circle cx="45" cy="170" r="312" fill="#D4AF37" opacity="0.12"/><path d="M42 880 v-137 a70 70 0 0 1 141 0 V880 Z" fill="#6b4a17"/><circle cx="112" cy="694" r="31" fill="#6b4a17"/><path d="M267 880 v-148 a70 70 0 0 1 141 0 V880 Z" fill="#6b4a17"/><circle cx="338" cy="683" r="31" fill="#6b4a17"/><path d="M492 880 v-138 a70 70 0 0 1 141 0 V880 Z" fill="#1A0E0B"/><circle cx="562" cy="692" r="31" fill="#1A0E0B"/><path d="M717 880 v-137 a70 70 0 0 1 141 0 V880 Z" fill="#1A0E0B"/><circle cx="788" cy="693" r="31" fill="#1A0E0B"/><rect y="880" width="900" height="220" fill="#120B09" opacity="0.55"/><text x="28" y="1074" font-family="Georgia,serif" font-style="italic" font-size="30" fill="#E9DFB8" opacity="0.9">Ансамбль «Казачья Воля»</text></svg>
