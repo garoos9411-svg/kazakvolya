@@ -86,7 +86,16 @@ function kv_clean_url(mixed $v): string
     if ($v === '') {
         return '';
     }
-    return filter_var($v, FILTER_VALIDATE_URL) ? $v : '';
+    // разрешаем внешние http(s)-ссылки и ссылки «протокол не важен» (//cdn…)
+    if (filter_var($v, FILTER_VALIDATE_URL) || str_starts_with($v, '//')) {
+        // запретим javascript:, data:, file: внутри «странных» значений
+        return preg_match('#^(https?:)?//#i', $v) ? $v : '';
+    }
+    // локальные относительные пути вида theme/img/….svg или uploads/….mp4 — тоже ок
+    if (preg_match('#^[A-Za-z0-9_\-./]+$#', $v) && !str_contains($v, '..')) {
+        return $v;
+    }
+    return '';
 }
 
 /**

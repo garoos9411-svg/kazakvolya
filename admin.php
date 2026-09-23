@@ -329,11 +329,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $title = a_str($_POST['title'] ?? '', 200) ?: 'Без названия';
         $slugIn = a_str($_POST['slug'] ?? '', 120);
         $slug = $slugIn !== '' ? a_slug($slugIn) : a_slug($title);
-        // уникальность slug
-        $taken = array_column($pages, 'slug');
-        if (in_array($slug, $taken, true)) {
-            $base = $slug; $i = 2;
-            while (in_array($slug, $taken, true)) { $slug = $base . '-' . $i++; }
+
+        /* Защита главной: slug страницы «home» менять нельзя —
+           на него ссылается роутер index.php по умолчанию */
+        $isHome = ($pages[$pi]['slug'] ?? '') === 'home' || $slug === 'home';
+        if ($isHome) {
+            $slug = 'home';
+        } else {
+            // уникальность slug (не считая текущей страницы)
+            $taken = array_map(fn($p) => $p['slug'] ?? '', $pages);
+            unset($taken[$pi]);
+            if (in_array($slug, $taken, true)) {
+                $base = $slug; $i = 2;
+                while (in_array($slug, $taken, true)) { $slug = $base . '-' . $i++; }
+            }
         }
 
         // загруженные картинки попадают прямо в массив блоков
@@ -365,7 +374,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pages = kv_read_json($dataDir . 'pages.json');
         $title = a_str($_POST['title'] ?? '', 200) ?: 'Новая страница';
         $slug = a_slug(a_str($_POST['slug'] ?? '', 120) ?: $title);
-        $taken = array_column($pages, 'slug');
+        // «home» и «afisha/news» зарезервированы роутером — не даём создать дубль
+        if ($slug === '' || in_array($slug, ['home', 'afisha', 'news'], true)) { $slug = 'page-' . (count($pages) + 1); }
+        $taken = array_map(fn($p) => $p['slug'] ?? '', $pages);
         if (in_array($slug, $taken, true)) { $slug .= '-' . (count($pages) + 1); }
         $pages[] = [
             'slug'=>$slug,'title'=>$title,'menu_title'=>$title,'visible'=>true,
@@ -535,6 +546,9 @@ function a_normalize_block(string $type, array $raw, array $old): array
     switch ($type) {
         case 'hero':
             $b['subtitle'] = a_str($raw['subtitle'] ?? '', 600);
+            $hv = trim((string)($raw['video_url'] ?? ''));
+            $b['video_url'] = $hv !== '' && kv_clean_url($hv) !== '' ? $hv : '';
+            $b['poster']    = a_str($raw['poster'] ?? '', 300);
             $b['image']    = a_str($raw['image'] ?? '', 300) ?: 'theme/img/hero.svg';
             $b['image_alt']= a_str($raw['image_alt'] ?? '', 200);
             $b['cta']  = $btn('cta');  $b['cta2'] = $btn('cta2');
@@ -545,13 +559,17 @@ function a_normalize_block(string $type, array $raw, array $old): array
             $b['subtitle'] = a_str($raw['subtitle'] ?? '', 600);
             break;
         case 'text':
+            $b['html'] = trim(preg_replace('/<script\b[^>]*>.*?<\/script>/is', '', (string)($raw['html'] ?? '')));
+            break;
         case 'media':
             $b['html'] = trim(preg_replace('/<script\b[^>]*>.*?<\/script>/is', '', (string)($raw['html'] ?? '')));
-            if ($type === 'media') {
-                $b['image'] = a_str($raw['image'] ?? '', 300) ?: 'theme/img/placeholder.svg';
-                $b['image_alt'] = a_str($raw['image_alt'] ?? '', 200);
-                $b['cta'] = $btn('cta');
-            }
+            $b['image'] = a_str($raw['image'] ?? '', 300) ?: 'theme/img/placeholder.svg';
+            $b['image_alt'] = a_str($raw['image_alt'] ?? '', 200);
+            $b['cta'] = $btn('cta');
+            // видео в медиа-блоке: принимаем только http(s)/относительные ссылки и data:
+            $v = trim((string)($raw['video_url'] ?? ''));
+            $b['video_url'] = $v !== '' && kv_clean_url($v) !== '' ? $v : '';
+            $b['poster']    = a_str($raw['poster'] ?? '', 300);
             break;
         case 'rich_html':
             $b['html'] = kv_sanitize_html_simple((string)($raw['html'] ?? ''));
@@ -909,8 +927,8 @@ details summary{cursor:pointer;font-weight:600;color:var(--wine);padding:6px 0}
                      <input type="text" name="title" value="<?= a_e($p['title']) ?>"></div>
                 <div><label class="f">Пункт меню</label>
                      <input type="text" name="menu_title" value="<?= a_e($p['menu_title'] ?? '') ?>"></div>
-                <div><label class="f">URL (slug)</label>
-                     <input type="text" name="slug" value="<?= a_e($p['slug']) ?>"></div>
+                <div><label class="f">URL (slug)<?= ($p['slug'] ?? '') === 'home' ? ' — главная, не меняется' : '' ?></label>
+                     <input type="text" name="slug" value="<?= a_e($p['slug']) ?>" <?= ($p['slug'] ?? '') === 'home' ? 'readonly style="opacity:.6"' : '' ?>></div>
             </div>
             <label style="display:flex;gap:8px;align-items:center;margin-top:10px">
                 <input type="checkbox" style="width:auto" name="visible" value="1" <?= !empty($p['visible'])?'checked':'' ?>>
@@ -1197,6 +1215,8 @@ function a_render_block_fields(int $bi, array $b): string
                   . '<img class="imgprev" style="margin-top:8px" src="' . a_e($b['image'] ?? '') . '" alt=""></div></div>';
             $out .= $in('image_alt', 'Описание картинки (alt)');
             $out .= $btnPair('cta', 'Кнопка 1') . $btnPair('cta2', 'Кнопка 2');
+            $out .= '<div class="grid2">' . $in('video_url', 'Видео на фоне (mp4-ссылка)')
+                  . $in('poster', 'Постер видео (путь к картинке)') . '</div>';
             $out .= $in('facts', 'Факты — по одному на строку', '35 лет на сцене', true);
             $out .= $in('marquee', 'Бегущая строка названий программ');
             break;
@@ -1219,6 +1239,8 @@ function a_render_block_fields(int $bi, array $b): string
                   . '<input type="file" name="upload[' . $n . '[image]]" accept="image/*">'
                   . '<img class="imgprev" style="margin-top:8px" src="' . a_e($b['image'] ?? '') . '" alt=""></div></div>';
             $out .= $in('image_alt', 'Alt картинки');
+            $out .= '<div class="grid2">' . $in('video_url', 'Видео (mp4-ссылка) — показывает плеер вместо фото')
+                  . $in('poster', 'Постер видео (путь к картинке)') . '</div>';
             $out .= $in('html', 'Текст справа от фото', '', true);
             $out .= $btnPair('cta', 'Ссылка «подробнее»');
             break;

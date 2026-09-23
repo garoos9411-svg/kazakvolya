@@ -47,20 +47,20 @@ function kv_render_block(array $b, array $ctx = []): void
 
         /* ---------- HERO: главный экран (видеоплей + параллакс-пятна) ---------- */
         case 'hero': ?>
-        <section class="hero hero-video-mode">
-            <?php $video = kv_clean_url($ctx['settings']['hero_video_url'] ?? ''); ?>
-            <?php if ($video !== ''): ?>
-            <!-- Фоновое видео: без звука, в цикле; при prefers-reduced-motion JS его остановит -->
-            <video class="hero-bg" autoplay muted loop playsinline preload="metadata"
-                   poster="<?= kv_e($ctx['settings']['hero_poster'] ?? 'theme/img/hero-bg.svg') ?>" tabindex="-1" aria-hidden="true">
-                <source src="<?= kv_e($video) ?>" type="video/mp4">
+        <section class="hero<?= ($heroVideo = kv_clean_url($b['video_url'] ?? '')) !== '' ? ' has-video' : '' ?>">
+            <?php if (($heroVideo ?? '') !== ''): ?>
+            <!-- Фоновое видео hero: без звука, в цикле; при prefers-reduced-motion JS его остановит -->
+            <video class="hero-bg" autoplay muted loop playsinline preload="metadata" tabindex="-1" aria-hidden="true"
+                   poster="<?= kv_e($b['poster'] ?? 'theme/img/hero-bg.svg') ?>">
+                <source src="<?= kv_e($heroVideo) ?>">
             </video>
+            <div class="hero-shade-light" aria-hidden="true"></div>
             <?php else: ?>
-            <div class="hero-bg hero-bg-static" style="background-image:url('<?= kv_e($ctx['settings']['hero_poster'] ?? 'theme/img/hero-bg.svg') ?>')" aria-hidden="true"></div>
+            <!-- Слоистый «оживший» фон: золотая сетка + дрейфующие пятна + мягкая виньетка -->
+            <div class="hero-grid" aria-hidden="true"></div>
             <?php endif; ?>
-            <div class="hero-shade" aria-hidden="true"></div>
-            <i class="orb orb-gold" data-parallax="0.05" aria-hidden="true"></i>
-            <i class="orb orb-wine"  data-parallax="-0.03" aria-hidden="true"></i>
+            <i class="orb orb-gold hero-orb-1" data-parallax="0.06" aria-hidden="true"></i>
+            <i class="orb orb-wine hero-orb-2" data-parallax="-0.04" aria-hidden="true"></i>
             <div class="container hero-inner">
                 <div class="hero-content">
                     <?php if (!empty($b['kicker'])): ?><p class="hero-kicker is-reveal"><span class="pulse-dot"></span><?= kv_e($b['kicker']) ?></p><?php endif; ?>
@@ -72,7 +72,7 @@ function kv_render_block(array $b, array $ctx = []): void
                                target="_blank" rel="noopener"><?= kv_e($b['cta']['text']) ?></a>
                         <?php endif; ?>
                         <?php if (!empty($b['cta2']['text'])): ?>
-                            <a class="btn btn-ghost btn-lg glass" href="<?= kv_e($b['cta2']['url'] ?? '#') ?>"><?= kv_e($b['cta2']['text']) ?></a>
+                            <a class="btn btn-ghost btn-lg" href="<?= kv_e($b['cta2']['url'] ?? '#') ?>"><?= kv_e($b['cta2']['text']) ?></a>
                         <?php endif; ?>
                     </div>
                     <?php if (!empty($b['facts'])): ?>
@@ -104,7 +104,7 @@ function kv_render_block(array $b, array $ctx = []): void
             <i class="orb orb-gold ph-orb" data-parallax="0.04" aria-hidden="true"></i>
             <div class="container">
                 <p class="kicker is-reveal"><?= kv_e($b['kicker'] ?? 'ГБУК ГАПП «Казачья Воля»') ?></p>
-                <h1 class="display page-hero-title split-lines"><span><?= kv_e($b['title'] ?? '') ?></span></h1>
+                <h1 class="display page-hero-title"><span><?= kv_e($b['title'] ?? '') ?></span></h1>
                 <?php if (!empty($b['subtitle'])): ?><p class="hero-sub is-reveal"><?= kv_e($b['subtitle']) ?></p><?php endif; ?>
             </div>
         </section>
@@ -347,9 +347,18 @@ function kv_render_block(array $b, array $ctx = []): void
         case 'media': ?>
         <section class="section<?= $pad ?><?= $shade ?>">
             <div class="container split">
-                <div class="split-media media-frame is-reveal">
-                    <img src="<?= kv_e($b['image'] ?? 'theme/img/placeholder.svg') ?>"
-                         alt="<?= kv_e($b['image_alt'] ?? '') ?>" loading="lazy">
+                <?php /* Блок «Фото + текст»: если заполнено поле video_url — показываем видеоплеер */ ?>
+                <?php $blockVideo = kv_clean_url($b['video_url'] ?? ''); ?>
+                <div class="split-media media-frame is-reveal<?= $blockVideo !== '' ? ' video-card' : '' ?>">
+                    <?php if ($blockVideo !== ''): ?>
+                        <video src="<?= kv_e($blockVideo) ?>"
+                               poster="<?= kv_e($b['poster'] ?? 'theme/img/hero-bg.svg') ?>"
+                               preload="none" playsinline controls
+                               aria-label="<?= kv_e($b['image_alt'] ?? 'Видео') ?>"></video>
+                    <?php else: ?>
+                        <img src="<?= kv_e($b['image'] ?? 'theme/img/placeholder.svg') ?>"
+                             alt="<?= kv_e($b['image_alt'] ?? '') ?>" loading="lazy">
+                    <?php endif; ?>
                 </div>
                 <div class="prose is-reveal">
                     <?php if (!empty($b['kicker'])): ?><p class="kicker"><?= kv_e($b['kicker']) ?></p><?php endif; ?>
