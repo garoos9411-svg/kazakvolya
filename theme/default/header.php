@@ -35,7 +35,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Inter:wght@400;500;600;700&display=swap&subset=cyrillic" rel="stylesheet">
 
-    <link rel="stylesheet" href="theme/css/style.min.css?v=7">
+    <link rel="stylesheet" href="theme/css/style.min.css?v=8">
     <link rel="icon" href="theme/img/favicon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="theme/img/favicon.svg">
 
@@ -77,14 +77,33 @@
 
         <nav class="site-nav" id="nav" aria-label="Основное меню">
             <ul class="nav-list" data-stagger>
-                <?php foreach ($menu as $m): ?>
-                    <li>
-                        <a href="<?= kv_e(kv_url($m['slug'])) ?>"
-                           class="is-reveal <?= ($m['slug'] === ($current['slug'] ?? '')) ? 'is-active' : '' ?>">
-                            <?= kv_e($m['menu_title'] ?? $m['title']) ?>
-                        </a>
+                <?php
+                /* Рекурсивный рендер пункта меню (поддержка вложенных выпадающих списков) */
+                $kv_nav_item = function (array $m, int $level = 0) use (&$kv_nav_item): void {
+                    $slug     = $m['slug'] ?? '';
+                    $title    = kv_e($m['menu_title'] ?? $m['title'] ?? '');
+                    $children = array_values(array_filter($m['children'] ?? []));
+                    $active   = ($slug === ($GLOBALS['current']['slug'] ?? ''));
+                    foreach ($children as $c) {
+                        if (($c['slug'] ?? '') === ($GLOBALS['current']['slug'] ?? '')) { $active = true; }
+                    }
+                    ?>
+                    <li class="nav-item<?= $children ? ' has-sub' : '' ?> lvl-<?= $level ?><?= $active ? ' is-current' : '' ?>">
+                        <?php if ($children): ?>
+                            <button type="button" class="nav-link nav-parent <?= $active ? 'is-active' : '' ?>"
+                                    aria-expanded="false" aria-haspopup="true">
+                                <?= $title ?><svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <ul class="sub-menu" role="menu">
+                                <?php foreach ($children as $c): $kv_nav_item($c, $level + 1); endforeach; ?>
+                            </ul>
+                        <?php else: ?>
+                            <a href="<?= kv_e(kv_url($slug)) ?>" class="nav-link is-reveal<?= $active ? ' is-active' : '' ?>"><?= $title ?></a>
+                        <?php endif; ?>
                     </li>
-                <?php endforeach; ?>
+                    <?php
+                };
+                foreach ($menu as $m): $kv_nav_item($m); endforeach; ?>
             </ul>
             <a class="btn btn-gold nav-cta magnetic shine"
                href="<?= kv_e($settings['ticket_url'] ?? '#') ?>"
@@ -107,7 +126,16 @@
     </div>
 </div>
 <script type="application/json" id="searchIndex">[
-<?php foreach ($menu as $m): ?>{"t":<?= json_encode($m['menu_title'] ?? $m['title'] ?? '', JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>,"u":<?= json_encode(kv_url($m['slug']), JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>,"k":"страница"},
+<?php
+$kv_flat = function (array $nodes) use (&$kv_flat): array {
+    $out = [];
+    foreach ($nodes as $n) {
+        $out[] = $n;
+        $out   = array_merge($out, $kv_flat($n['children'] ?? []));
+    }
+    return $out;
+};
+foreach ($kv_flat($menu) as $m): ?>{"t":<?= json_encode($m['menu_title'] ?? $m['title'] ?? '', JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>,"u":<?= json_encode(kv_url($m['slug']), JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>,"k":"страница"},
 <?php endforeach; ?>
 <?php foreach ($news as $n): ?>{"t":<?= json_encode($n['title'] ?? '', JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>,"u":<?= json_encode(kv_url('news', (int)($n['id'] ?? 0)), JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>,"k":"новость · <?= kv_e(date('d.m.Y', strtotime($n['date'] ?? 'now'))) ?>","x":<?= json_encode(mb_strimwidth(strip_tags($n['text'] ?? ''), 0, 90, '…'), JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>},
 <?php endforeach; ?>

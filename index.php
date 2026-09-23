@@ -81,11 +81,89 @@ if ($current === null) {
     ];
 }
 
-// Собираем меню из pages.json (поле visible = true) + системные пункты
-$menu = array_values(array_filter($pages, fn($p) => !empty($p['visible'])));
-$menu[] = ['slug' => 'afisha',  'menu_title' => 'Афиша'];
-$menu[] = ['slug' => 'news',    'menu_title' => 'Новости'];
-$menu[] = ['slug' => 'contact', 'menu_title' => 'Контакты'];
+// Собираем меню из pages.json (поле visible = true) + системные пункты.
+// Поддержка ВЛОЖЕННОГО меню: у страницы может быть поле "parent" — slug
+// родительского пункта. Тогда страница попадает в выпадающий список родителя.
+$rawMenu   = array_values(array_filter($pages, fn($p) => !empty($p['visible'])));
+$systemPts = [
+    ['slug' => 'afisha',  'menu_title' => 'Афиша'],
+    ['slug' => 'news',    'menu_title' => 'Новости'],
+    ['slug' => 'contact', 'menu_title' => 'Контакты', 'parent' => 'o-kollektive'],
+];
+
+/**
+ * Построение дерева меню из плоского списка.
+ * Каждый узел получает 'children' => [...]. Дубли slug исключаются,
+ * ссылки на несуществующего/невидимого родителя и циклы безопасны.
+ */
+function kv_build_menu(array $items): array
+{
+    // нормализуем: slug => item (первое вхождение важнее)
+    $indexed = [];
+    foreach ($items as $it) {
+        $s = kv_slug((string)($it['slug'] ?? ''));
+        if ($s !== '' && !isset($indexed[$s])) {
+            $it['children'] = [];
+            $indexed[$s] = $it;
+        }
+    }
+    $roots   = [];
+    $isRoot  = function (array $item) use (&$isRoot, &$indexed): bool {
+        $p = kv_slug((string)($item['parent'] ?? ''));
+        return $p === '' || !isset($indexed[$p]);
+    };
+    $attach  = function (string $slug, int $depth) use (&$attach, &$indexed, &$roots, &$isRoot): void {
+        $item = $indexed[$slug];
+        $p    = kv_slug((string)($item['parent'] ?? ''));
+        if ($isRoot($item)) {
+            $roots[$slug] = $item;
+        } else {
+            $child = $item; $child['children'] = [];
+            $roots_parent = $p;
+            // находим корень цепочки родителей (глубина ограничена)
+            $node = $indexed[$p];
+            $chain = [$slug];
+            while (!$isRoot($node) && count($chain) < 10) {
+                $chain[] = kv_slug((string)$node['slug']);
+                $node = $indexed[kv_slug((string)$node['parent'])];
+            }
+            $rootSlug = kv_slug((string)$node['slug']);
+            // вставляем по цепочке от корня вниз
+            $ref = &$roots[$rootSlug];
+            for ($i = count($chain) - 2; $i >= 0; $i--) {
+                $cs = kv_slug((string)$chain[$i]);
+                $found = false;
+                foreach ($ref['children'] as &$c) {
+                    if (kv_slug((string)$c['slug']) === $cs) { $ref = &$c; $found = true; break; }
+                }
+                unset($c);
+                if (!$found) {
+                    $ref['children'][] = ['slug' => $cs] + $indexed[$cs];
+                    $lastKey = array_key_last($ref['children']);
+                    $ref = &$ref['children'][$lastKey];
+                }
+            }
+            unset($ref);
+        }
+    };
+    foreach (array_keys($indexed) as $s) { $attach($s, 0); }
+    // обход children рекурсивно: подтягиваем актуальные данные узлов
+    $hydrate = function (array $node) use (&$hydrate, &$indexed): array {
+        $s = kv_slug((string)($node['slug'] ?? ''));
+        if (isset($indexed[$s])) {
+            $kids = $node['children'] ?? [];
+            $node = $indexed[$s];
+            $node['children'] = [];
+            foreach ($kids as $k) { $node['children'][] = $hydrate($k); }
+        }
+        return $node;
+    };
+    $out = [];
+    foreach ($roots as $r) { $out[] = $hydrate($r); }
+    return $out;
+}
+
+$menu = kv_build_menu(array_merge($rawMenu, $systemPts));
 
 // Ближайшие мероприятия из афиши (для главной страницы)
 $upcoming = kv_afisha_upcoming($afisha, 3);

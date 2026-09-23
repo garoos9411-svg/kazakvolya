@@ -251,8 +251,42 @@ function kv_url(string $page = '', int $id = 0): string
 function kv_canonical(string $page = '', int $id = 0): string
 {
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    $host   = preg_replace('/[^A-Za-z0-9.\-]/', '', (string)($_SERVER['HTTP_HOST'] ?? 'localhost'));
+    $host   = preg_replace('/[^A-Za-z0-9.\-:]/', '', (string)($_SERVER['HTTP_HOST'] ?? 'localhost'));
+    // HTTP_HOST обычно уже содержит порт; если нет и порт нестандартный — добавляем
+    if (!str_contains($host, ':')) {
+        $port = (int)($_SERVER['SERVER_PORT'] ?? 80);
+        if ($port !== 80 && $port !== 443) {
+            $host .= ':' . $port;
+        }
+    }
     return $scheme . '://' . $host . kv_url($page, $id);
+}
+
+/**
+ * Приведение URL из JSON-данных к текущему формату адресов.
+ * Чинит устаревшие ссылки вида «index.php?page=afisha» (после перехода на ЧПУ),
+ * а также относительные пути без ведущего слэша при вложенной установке сайта.
+ */
+function kv_data_url(string $url): string
+{
+    $u = trim($url);
+    if ($u === '') {
+        return '#';
+    }
+    // внешние / протокол-независимые / mailto / tel — как есть
+    if (preg_match('#^(https?:)?//#i', $u) || preg_match('#^(mailto|tel):#i', $u)) {
+        return $u;
+    }
+    // старый query-формат → ЧПУ
+    if (preg_match('#^(?:index\.php\?)?page=([a-z0-9\-]+)(?:&(?:amp;)?id=(\d+))?#i', $u, $m)) {
+        return kv_url($m[1], (int)($m[2] ?? 0));
+    }
+    // якорь или абсолютный путь — не трогаем
+    if ($u[0] === '#' || $u[0] === '/') {
+        return $u;
+    }
+    // относительный путь («theme/img/…», «uploads/…») → с базой сайта
+    return kv_base_url() . '/' . ltrim($u, './');
 }
 
 /* ============================================================

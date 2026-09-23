@@ -18,7 +18,16 @@
         <nav class="footer-col" aria-label="Меню в подвале">
             <h3 class="footer-title">Разделы</h3>
             <ul>
-                <?php foreach ($menu as $m): ?>
+                <?php
+                $kv_flat_footer = function (array $nodes) use (&$kv_flat_footer): array {
+                    $out = [];
+                    foreach ($nodes as $n) {
+                        $out[] = $n;
+                        $out   = array_merge($out, $kv_flat_footer($n['children'] ?? []));
+                    }
+                    return $out;
+                };
+                foreach ($kv_flat_footer($menu) as $m): ?>
                     <li><a href="<?= kv_e(kv_url($m['slug'])) ?>"><?= kv_e($m['menu_title'] ?? $m['title']) ?></a></li>
                 <?php endforeach; ?>
             </ul>
@@ -71,6 +80,6 @@
     <button class="lb-nav lb-next" id="lbNext" aria-label="Следующее">›</button>
 </div>
 
-<script src="theme/js/script.min.js?v=5" defer></script>
+<script src="theme/js/script.min.js?v=8" defer></script>
 </body>
 </html>
