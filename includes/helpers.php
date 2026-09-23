@@ -137,3 +137,72 @@ function kv_text_to_html(string $text): string
     }
     return $html;
 }
+
+/* ============================================================
+ *  ФУНКЦИИ, КОТОРЫЕ ИСПОЛЬЗУЕТ admin.php:
+ *  flash-сообщения, CSRF-токены, учётные данные.
+ *  Хранятся в сессии PHP — никаких файлов и БД не требуется.
+ * ============================================================ */
+
+/**
+ * Положить одноразовое сообщение («Сохранено ✓») во временное хранилище сессии.
+ */
+function kv_flash(string $type, string $message): void
+{
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        return; // без активной сессии сообщения не копим — это не ошибка
+    }
+    $_SESSION['kv_flashes'][] = ['type' => $type, 'message' => $message];
+}
+
+/**
+ * Забрать все накопленные flash-сообщения и очистить список.
+ * Возвращает массив вида [['type'=>'success','message'=>'…'], …].
+ */
+function kv_get_flashes(): array
+{
+    $list = $_SESSION['kv_flashes'] ?? [];
+    unset($_SESSION['kv_flashes']);
+    return $list;
+}
+
+/**
+ * Выдать (при необходимости создать) CSRF-токен текущей сессии.
+ */
+function kv_generate_csrf(): string
+{
+    if (empty($_SESSION['kv_csrf'])) {
+        $_SESSION['kv_csrf'] = bin2hex(random_bytes(32));
+    }
+    return $_SESSION['kv_csrf'];
+}
+
+/**
+ * Проверить присланный из формы CSRF-токен.
+ */
+function kv_verify_csrf(string $token): bool
+{
+    return !empty($_SESSION['kv_csrf'])
+        && is_string($token)
+        && hash_equals($_SESSION['kv_csrf'], $token);
+}
+
+/**
+ * Прочитать учётные данные администратора из data/credentials.json.
+ * Если файла нет или он повреждён — создаём новый с паролем по умолчанию
+ * (admin / admin123) и возвращаем его. Формат поля «hash» — стандартный
+ * bcrypt-хэш password_hash(), совместимый с password_verify().
+ */
+function kv_credentials(string $credFile): array
+{
+    $cred = kv_read_json($credFile);
+    if (empty($cred['user']) || empty($cred['hash'])) {
+        $cred = [
+            'user' => 'admin',
+            'hash' => password_hash('admin123', PASSWORD_DEFAULT),
+        ];
+        kv_write_json($credFile, $cred);
+        @chmod($credFile, 0640);
+    }
+    return $cred;
+}

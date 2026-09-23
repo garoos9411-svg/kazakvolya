@@ -11,6 +11,11 @@ if (!defined('KV_SITE')) { exit('Access denied'); }
 
 require __DIR__ . '/header.php';
 
+/* Тонкий индикатор прогресса прокрутки (управляется из script.min.js) */
+?>
+<div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
+<?php
+
 foreach ($current['blocks'] ?? [] as $b) {
     kv_render_block($b, $ctx);
 }

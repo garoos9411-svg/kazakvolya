@@ -48,13 +48,17 @@
     </div>
 </footer>
 
+<!-- Кнопка «наверх» (появляется после прокрутки) -->
+<button class="to-top glass" id="toTop" aria-label="Наверх">↑</button>
+
 <!-- Плавающая кнопка «Позвонить» — удобно на телефоне -->
-<a class="fab-call" href="tel:<?= kv_e($settings['phone_raw'] ?? '') ?>" aria-label="Позвонить">
+<a class="fab-call magnetic" href="tel:<?= kv_e($settings['phone_raw'] ?? '') ?>" aria-label="Позвонить">
+    <span class="fab-pulse" aria-hidden="true"></span>
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path d="M6.6 10.8a15.5 15.5 0 006.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.2.4 2.4.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 013 4c0-.6.4-1 1-1h3.4c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.4 0 .8-.2 1l-2.2 2.2z" fill="#fff"/>
     </svg>
 </a>
 
-<script src="theme/js/script.min.js?v=2" defer></script>
+<script src="theme/js/script.min.js?v=3" defer></script>
 </body>
 </html>

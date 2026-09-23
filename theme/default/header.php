@@ -13,10 +13,16 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700&display=swap&subset=cyrillic" rel="stylesheet">
 
-    <link rel="stylesheet" href="theme/css/style.min.css?v=2">
+    <link rel="stylesheet" href="theme/css/style.min.css?v=3">
     <link rel="icon" href="theme/img/favicon.svg" type="image/svg+xml">
 </head>
-<body>
+<body class="preload">
+
+<!-- Плавное появление страницы при загрузке (класс снимает script.min.js) -->
+<div class="page-veil" id="pageVeil" aria-hidden="true"></div>
+
+<!-- Декоративные «плавающие» пятна на фоне всего сайта -->
+<div class="bg-blobs" aria-hidden="true"><i></i><i></i><i></i></div>
 
 <!-- Перемычка для клавиатуры -->
 <a class="skip-link" href="#main">Перейти к содержимому</a>
@@ -41,18 +47,18 @@
             <span></span><span></span><span></span>
         </button>
 
-        <nav class="site-nav" id="nav" aria-label="Основное меню">
-            <ul class="nav-list">
+        <nav class="site-nav glass" id="nav" aria-label="Основное меню">
+            <ul class="nav-list" data-stagger>
                 <?php foreach ($menu as $m): ?>
                     <li>
                         <a href="index.php?page=<?= kv_e($m['slug']) ?>"
-                           class="<?= ($m['slug'] === ($current['slug'] ?? '')) ? 'is-active' : '' ?>">
+                           class="is-reveal <?= ($m['slug'] === ($current['slug'] ?? '')) ? 'is-active' : '' ?>">
                             <?= kv_e($m['menu_title'] ?? $m['title']) ?>
                         </a>
                     </li>
                 <?php endforeach; ?>
             </ul>
-            <a class="btn btn-primary nav-cta"
+            <a class="btn btn-primary nav-cta magnetic"
                href="<?= kv_e($settings['ticket_url'] ?? '#') ?>"
                target="_blank" rel="noopener">Купить билет</a>
         </nav>

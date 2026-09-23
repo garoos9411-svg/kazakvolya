@@ -27,18 +27,21 @@ define('KV_SITE', true);
 $CONFIG = require __DIR__ . '/config.php';
 require  __DIR__ . '/includes/helpers.php';
 
-$dataDir = $CONFIG['paths']['data'];
+$dataDir = rtrim($CONFIG['paths']['data'], '/\\') . DIRECTORY_SEPARATOR;
 
 /* ---------- Хранилище учётных данных (вне исходников!) ---------- */
-$credFile = $dataDir . 'credentials.json';
-if (!is_file($credFile)) {
-    @file_put_contents($credFile, json_encode([
+$credFile = rtrim($dataDir, '/\\') . '/credentials.json';
+// kv_credentials() сам создаст файл с паролем по умолчанию, если его нет
+// или если формат повреждён (например, старым генератором).
+$CRED = kv_credentials($credFile);
+// Если хэш не проходит проверку формата bcrypt — тоже пересоздаём заново.
+if (!preg_match('/^\$2y\$/', (string)$CRED['hash'])) {
+    $CRED = [
         'user' => 'admin',
         'hash' => password_hash('admin123', PASSWORD_DEFAULT),
-    ], JSON_UNESCAPED_UNICODE));
-    @chmod($credFile, 0640);
+    ];
+    kv_write_json($credFile, $CRED);
 }
-$CRED = kv_read_json($credFile) ?: ['user' => 'admin', 'hash' => ''];
 
 /* ---------- Старт защищённой сессии ---------- */
 if (session_status() === PHP_SESSION_NONE) {
@@ -402,6 +405,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach (['phone_raw','vk_url','ticket_url'] as $f) {
             if (array_key_exists($f, $_POST)) $settings[$f] = a_url($_POST[$f]);
         }
+        // видео на фоне главной: принимаем только http(s)/протокол-относительные mp4-ссылки
+        if (array_key_exists('hero_video_url', $_POST)) {
+            $v = trim((string)$_POST['hero_video_url']);
+            $settings['hero_video_url'] = ($v !== '' && preg_match('#^(https?://|//)#i', $v)) ? $v : '';
+        }
+        if (array_key_exists('hero_poster', $_POST)) {
+            $settings['hero_poster'] = a_str($_POST['hero_poster'], 300);
+        }
         a_save('settings.json', $settings);
         kv_flash('success', 'Настройки сохранены.');
         header('Location: admin.php?section=settings'); exit;
@@ -613,6 +624,9 @@ function kv_sanitize_html_simple(string $html): string
  * ============================================================ */
 $flashes = kv_get_flashes();
 $csrf = kv_generate_csrf();
+// фон экрана входа = то же видео, что и на сайте (можно отключить в настройках)
+$LOGIN_VIDEO = empty($GLOBALS['KV_LOGIN_BG_DISABLED']) ? kv_read_json($dataDir . 'settings.json')['hero_video_url'] ?? '' : '';
+$GLOBALS['LOGIN_VIDEO'] = $LOGIN_VIDEO;
 
 /* ---------- Экран входа ---------- */
 if (!$isLoggedIn || $requiresLogout) { ?>
@@ -625,24 +639,64 @@ if (!$isLoggedIn || $requiresLogout) { ?>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600&display=swap&subset=cyrillic" rel="stylesheet">
 <style>
 :root{--wine:#800020;--gold:#D4AF37;--ink:#161311}
-*{box-sizing:border-box}body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
-font-family:'Inter',system-ui,Arial,sans-serif;background:radial-gradient(900px 500px at 80% -10%,rgba(128,0,32,.55),transparent 60%),radial-gradient(700px 400px at 0% 110%,rgba(212,175,55,.18),transparent 60%),var(--ink);padding:20px}
-.card{width:100%;max-width:400px;background:#fff;border-radius:24px;padding:38px 34px;box-shadow:0 30px 80px -20px rgba(0,0,0,.6)}
-h1{font-family:'Playfair Display',Georgia,serif;margin:0 0 4px;font-size:1.6rem;color:var(--wine)}
-p.sub{margin:0 0 26px;color:#777;font-size:.92rem}
-label{display:block;font-size:.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#555;margin:14px 0 6px}
-input{width:100%;padding:13px 14px;border:1.5px solid #ddd;border-radius:12px;font:inherit}
-input:focus{outline:none;border-color:var(--wine)}
-button{margin-top:22px;width:100%;padding:14px;border:0;border-radius:999px;background:var(--wine);color:#fff;font:inherit;font-weight:600;cursor:pointer;transition:filter .2s}
-button:hover{filter:brightness(1.15)}.msg{padding:10px 14px;border-radius:10px;font-size:.9rem;margin-top:14px}
-.err{background:#fbeaea;color:#800020}.ok{background:#eaf6ec;color:#1c7a33}
-.lock{background:#fff4d6;color:#7a5b00;padding:12px 14px;border-radius:10px;font-size:.9rem;margin-top:14px}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+ font-family:'Inter',system-ui,Arial,sans-serif;background:var(--ink);padding:20px;overflow:hidden}
+/* фон: видео (если доступно) + градиенты поверх */
+.bg{position:fixed;inset:0;z-index:-2}
+video.bg{width:100%;height:100%;object-fit:cover}
+.veil{position:fixed;inset:0;z-index:-1;
+ background:radial-gradient(900px 500px at 80% -10%,rgba(128,0,32,.6),transparent 60%),
+            radial-gradient(700px 400px at 0% 110%,rgba(212,175,55,.25),transparent 60%),
+            linear-gradient(160deg,rgba(22,19,17,.72),rgba(22,19,17,.9));
+ backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.card{width:100%;max-width:410px;padding:40px 36px;border-radius:26px;color:#fff;
+ background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);
+ backdrop-filter:blur(24px) saturate(1.4);-webkit-backdrop-filter:blur(24px) saturate(1.4);
+ box-shadow:0 30px 90px -20px rgba(0,0,0,.7);
+ animation:rise .8s cubic-bezier(.22,.61,.36,1) both}
+@keyframes rise{from{opacity:0;transform:translateY(26px) scale(.98)}to{opacity:1;transform:none}}
+h1{font-family:'Playfair Display',Georgia,serif;margin:0 0 4px;font-size:1.7rem;color:var(--gold)}
+p.sub{margin:0 0 26px;color:rgba(255,255,255,.6);font-size:.92rem}
+label{display:block;font-size:.74rem;font-weight:600;text-transform:uppercase;letter-spacing:.1em;
+ color:rgba(255,255,255,.55);margin:14px 0 6px}
+input{width:100%;padding:13px 14px;border:1.5px solid rgba(255,255,255,.18);border-radius:14px;
+ font:inherit;color:#fff;background:rgba(255,255,255,.06);transition:border-color .2s,background .2s,box-shadow .2s}
+input::placeholder{color:rgba(255,255,255,.3)}
+input:focus{outline:none;border-color:var(--gold);background:rgba(255,255,255,.1);
+ box-shadow:0 0 0 4px rgba(212,175,55,.15)}
+button{margin-top:24px;width:100%;padding:14px;border:0;border-radius:999px;position:relative;overflow:hidden;
+ background:linear-gradient(120deg,var(--wine),#a30b2e);color:#fff;font:inherit;font-weight:600;font-size:1rem;
+ cursor:pointer;transition:transform .18s,box-shadow .18s,filter .2s;
+ box-shadow:0 14px 34px -14px rgba(128,0,32,.9)}
+button:hover{filter:brightness(1.12);transform:translateY(-2px)}
+button:active{transform:scale(.97)}
+button::after{content:"";position:absolute;top:0;left:-80%;width:50%;height:100%;
+ background:linear-gradient(100deg,transparent,rgba(255,255,255,.4),transparent);
+ transform:skewX(-20deg);transition:left .6s cubic-bezier(.22,.61,.36,1)}
+button:hover::after{left:130%}
+button:disabled{filter:grayscale(.6) brightness(.7);cursor:not-allowed;transform:none}
+.msg{padding:11px 14px;border-radius:12px;font-size:.9rem;margin-top:14px;animation:rise .5s both}
+.err{background:rgba(255,90,110,.14);border:1px solid rgba(255,90,110,.35);color:#ffb9c4}
+.ok{background:rgba(60,200,120,.12);border:1px solid rgba(60,200,120,.35);color:#a9edc3}
+.lock{background:rgba(212,175,55,.12);border:1px solid rgba(212,175,55,.4);color:#f0d998;
+ padding:12px 14px;border-radius:12px;font-size:.9rem;margin-top:14px}
+.shake{animation:shake .5s}
+@keyframes shake{10%,90%{transform:translateX(-2px)}20%,80%{transform:translateX(4px)}
+ 30%,50%,70%{transform:translateX(-7px)}40%,60%{transform:translateX(7px)}}
 </style>
 </head>
 <body>
-<form class="card" method="post">
+<?php $loginBg = kv_clean_url($GLOBALS['LOGIN_VIDEO'] ?? ''); ?>
+<?php if ($loginBg !== ''): ?>
+<video class="bg" autoplay muted loop playsinline preload="metadata" tabindex="-1" aria-hidden="true">
+    <source src="<?= htmlspecialchars($loginBg, ENT_QUOTES) ?>" type="video/mp4">
+</video>
+<?php endif; ?>
+<div class="veil" aria-hidden="true"></div>
+<form class="card <?= $isLocked || !empty(array_filter($flashes, fn($f)=>$f['type']==='error')) ? 'shake' : '' ?>" method="post">
     <input type="hidden" name="action" value="login">
-    <h1>Казачья Воля</h1>
+    <h1>✦ Казачья Воля</h1>
     <p class="sub">Панель управления сайтом</p>
     <?php foreach ($flashes as $f): ?><div class="msg <?= $f['type']==='error'?'err':'ok' ?>"><?= a_e($f['message']) ?></div><?php endforeach; ?>
     <?php if ($isLocked): ?>
@@ -650,11 +704,16 @@ button:hover{filter:brightness(1.15)}.msg{padding:10px 14px;border-radius:10px;f
         <?= ceil(($lockedUntil - time()) / 60) ?> мин.</div>
     <?php endif; ?>
     <label for="u">Логин</label>
-    <input id="u" name="username" autocomplete="username" required>
+    <input id="u" name="username" placeholder="admin" autocomplete="username" required autofocus>
     <label for="p">Пароль</label>
-    <input id="p" type="password" name="password" autocomplete="current-password" required>
+    <input id="p" type="password" name="password" placeholder="••••••••" autocomplete="current-password" required>
     <button <?= $isLocked ? 'disabled' : '' ?>>Войти</button>
 </form>
+<script>
+/* остановить фоновое видео пользователям с reduced-motion */
+if (matchMedia('(prefers-reduced-motion: reduce)').matches)
+    document.querySelectorAll('video.bg').forEach(function(v){v.pause();});
+</script>
 </body></html>
 <?php exit; }
 
@@ -1053,6 +1112,7 @@ details summary{cursor:pointer;font-weight:600;color:var(--wine);padding:6px 0}
                     'email'=>'E-mail','hours'=>'Часы работы','director'=>'Руководитель',
                     'vk_url'=>'Группа ВКонтакте','ticket_url'=>'Ссылка на билеты','copyright'=>'Строка © внизу',
                     'seo_description'=>'Meta description',
+                    'hero_video_url'=>'Видео на фоне главной (mp4, https://…)','hero_poster'=>'Постер/фон видео (путь к картинке)',
                 ];
                 foreach ($fields as $k=>$lbl): ?>
                     <label class="f"><?= a_e($lbl) ?></label>
