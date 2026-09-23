@@ -71,11 +71,11 @@ function kv_render_block(array $b, array $ctx = []): void
                     <?php if (!empty($b['subtitle'])): ?><p class="hero-sub is-reveal"><?= kv_e($b['subtitle']) ?></p><?php endif; ?>
                     <div class="hero-actions is-reveal">
                         <?php if (!empty($b['cta']['text'])): ?>
-                            <a class="btn btn-primary btn-lg magnetic shine" href="<?= kv_e($b['cta']['url'] ?? '#') ?>"
-                               target="_blank" rel="noopener"><?= kv_e($b['cta']['text']) ?></a>
+                            <a class="btn btn-primary btn-lg magnetic shine" href="<?= kv_e(kv_data_url($b['cta']['url'] ?? '#')) ?>"
+                               <?= preg_match('#^https?://#i', (string)($b['cta']['url'] ?? '')) ? 'target="_blank" rel="noopener"' : '' ?>><?= kv_e($b['cta']['text']) ?></a>
                         <?php endif; ?>
                         <?php if (!empty($b['cta2']['text'])): ?>
-                            <a class="btn btn-ghost btn-lg" href="<?= strpos((string)($b['cta2']['url'] ?? ''), 'page=afisha') !== false ? '#afisha' : kv_e($b['cta2']['url'] ?? '#') ?>" data-nav-fix=><?= kv_e($b['cta2']['text']) ?></a>
+                            <a class="btn btn-ghost btn-lg" href="<?= kv_e(kv_data_url($b['cta2']['url'] ?? '#')) ?>"><?= kv_e($b['cta2']['text']) ?></a>
                         <?php endif; ?>
                     </div>
                     <?php if (!empty($b['facts'])): ?>
@@ -236,11 +236,11 @@ function kv_render_block(array $b, array $ctx = []): void
                 </div>
                 <div class="cta-actions">
                     <?php if (!empty($b['cta']['text'])): ?>
-                        <a class="btn btn-primary btn-lg" href="<?= kv_e($b['cta']['url'] ?? '#') ?>"
-                           target="_blank" rel="noopener"><?= kv_e($b['cta']['text']) ?></a>
+                        <a class="btn btn-primary btn-lg" href="<?= kv_e(kv_data_url($b['cta']['url'] ?? '#')) ?>"
+                           <?= preg_match('#^https?://#i', (string)($b['cta']['url'] ?? '')) ? 'target="_blank" rel="noopener"' : '' ?>><?= kv_e($b['cta']['text']) ?></a>
                     <?php endif; ?>
                     <?php if (!empty($b['cta2']['text'])): ?>
-                        <a class="btn btn-ghost btn-lg" href="<?= kv_e($b['cta2']['url'] ?? '#') ?>"><?= kv_e($b['cta2']['text']) ?></a>
+                        <a class="btn btn-ghost btn-lg" href="<?= kv_e(kv_data_url($b['cta2']['url'] ?? '#')) ?>"><?= kv_e($b['cta2']['text']) ?></a>
                     <?php endif; ?>
                 </div>
             </div>
@@ -370,7 +370,7 @@ function kv_render_block(array $b, array $ctx = []): void
                     <?php if (!empty($b['title'])): ?><h2 class="section-title display"><?= kv_e($b['title']) ?></h2><?php endif; ?>
                     <?= kv_text_to_html($b['html'] ?? '') ?>
                     <?php if (!empty($b['cta']['text'])): ?>
-                        <a class="link-arrow" href="<?= kv_e($b['cta']['url'] ?? '#') ?>"><?= kv_e($b['cta']['text']) ?> →</a>
+                        <a class="link-arrow" href="<?= kv_e(kv_data_url($b['cta']['url'] ?? '#')) ?>"><?= kv_e($b['cta']['text']) ?> →</a>
                     <?php endif; ?>
                 </div>
             </div>

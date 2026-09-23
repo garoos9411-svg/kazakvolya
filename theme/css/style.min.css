@@ -132,12 +132,39 @@ ul,ol{padding-left:1.2em}
 
 /* десктопное меню — pill-hover */
 .nav-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
-.nav-list a{display:block;padding:13px 10px;text-decoration:none;color:var(--text-inv);
+.nav-list a,.nav-link{display:block;padding:13px 10px;text-decoration:none;color:var(--text-inv);
   font-weight:500;font-size:1.05rem;border-radius:999px;position:relative;
   transition:color .3s,background .3s}
-.nav-list a:hover{background:rgba(244,239,231,.08);color:#fff}
-.nav-list a.is-active{color:var(--gold);background:var(--gold-dim)}
+.nav-list a:hover,.nav-link:hover{background:rgba(244,239,231,.08);color:#fff}
+.nav-list a.is-active,.nav-link.is-active{color:var(--gold);background:var(--gold-dim)}
 .nav-cta{margin-top:auto;width:100%}
+
+/* ---------- ВЛОЖЕННОЕ МЕНЮ (dropdown) ---------- */
+.nav-item{position:relative}
+button.nav-parent{background:none;border:0;cursor:pointer;font:inherit;width:100%;
+  text-align:left;display:inline-flex;align-items:center;gap:6px}
+button.nav-parent .caret{transition:transform .25s var(--ease);flex:none}
+.nav-item.is-open > button.nav-parent .caret{transform:rotate(180deg)}
+.sub-menu{list-style:none;margin:0;padding:0;position:absolute;top:100%;left:0;z-index:60;
+  min-width:220px;background:rgba(20,14,17,.92);backdrop-filter:blur(14px);
+  border:1px solid var(--line-inv);border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,.5);
+  padding:8px;opacity:0;visibility:hidden;transform:translateY(10px);
+  transition:opacity .22s var(--ease),transform .22s var(--ease),visibility .22s}
+.sub-menu .nav-link{font-size:.95rem;padding:10px 14px;border-radius:10px;white-space:nowrap}
+.sub-menu .sub-menu{top:-8px;left:100%;transform:translateX(10px)}
+.nav-item.is-open > .sub-menu{opacity:1;visibility:visible;transform:none}
+@media(min-width:992px){
+  .nav-item.has-sub:hover > .sub-menu,.nav-item.has-sub:focus-within > .sub-menu{
+    opacity:1;visibility:visible;transform:none}
+}
+/* мобильный аккордеон */
+@media(max-width:991px){
+  .sub-menu{position:static;opacity:1;visibility:visible;transform:none;background:none;
+    border:0;box-shadow:none;backdrop-filter:none;padding:0 0 0 14px;min-width:0;
+    display:none}
+  .nav-item.is-open > .sub-menu{display:block}
+  .sub-menu .nav-link{font-size:1rem}
+}
 
 /* мобильная шторка = тёмное стекло */
 @media(max-width:991px){

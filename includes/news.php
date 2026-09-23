@@ -42,7 +42,7 @@ require $CONFIG['paths']['theme'] . '/' . $CONFIG['site']['theme'] . '/header.ph
     <section class="section-tight">
         <div class="container narrow">
             <div class="media-frame article-cover">
-                <img src="<?= kv_e($single['image']) ?>" alt="<?= kv_e($single['image_alt'] ?? '') ?>"
+                <img src="<?= kv_e(kv_data_url((string)($single['image'] ?? 'theme/img/placeholder.svg'))) ?>" alt="<?= kv_e($single['image_alt'] ?? '') ?>"
                      width="1200" height="675" fetchpriority="high" itemprop="image">
             </div>
         </div>
@@ -89,7 +89,7 @@ require $CONFIG['paths']['theme'] . '/' . $CONFIG['site']['theme'] . '/header.ph
                     <?php foreach ($news as $n): ?>
                         <a class="news-card" data-title="<?= kv_e(mb_strtolower($n['title'] ?? '')) ?>"
                            href="<?= kv_e(kv_url('news', (int)($n['id'] ?? 0))) ?>">
-                            <img src="<?= kv_e($n['image'] ?? 'theme/img/placeholder.svg') ?>"
+                            <img src="<?= kv_e(kv_data_url((string)($n['image'] ?? 'theme/img/placeholder.svg'))) ?>"
                                  alt="<?= kv_e($n['image_alt'] ?? '') ?>" loading="lazy" width="800" height="450">
                             <div class="news-body">
                                 <time class="news-date" datetime="<?= kv_e($n['date'] ?? '') ?>"><?= kv_date_ru($n['date'] ?? '') ?></time>

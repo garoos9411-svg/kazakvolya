@@ -46,7 +46,7 @@ $renderEvent = function (array $a, bool $reveal = false): void {
             <span class="event-price"><?= kv_e($a['price'] ?? '') ?></span>
             <div class="event-actions">
                 <?php if (!empty($a['ticket_url'])): ?>
-                    <a class="btn btn-primary" href="<?= kv_e($a['ticket_url']) ?>"
+                    <a class="btn btn-primary" href="<?= kv_e(kv_data_url((string)($a['ticket_url'] ?? '#'))) ?>"
                        itemprop="offers" itemscope itemtype="https://schema.org/Offer"
                        target="_blank" rel="noopener"><span itemprop="url">Купить билет</span></a>
                 <?php else: ?>
