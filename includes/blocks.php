@@ -36,10 +36,12 @@ function kv_section_head(array $b, string $cls = ''): void
 /**
  * Рендер одного блока страницы.
  */
-function kv_render_block(array $b, array $ctx = []): void
+function kv_render_block($b, array $ctx = []): void
 {
     static $i = 0; // чередование светлых/тёмных секций
-    $type  = $b['type'] ?? '';
+    /* повреждённый блок из JSON не должен ронять сайт */
+    if (!is_array($b)) { $b = []; }
+    $type  = is_string($b['type'] ?? null) ? $b['type'] : '';
     $shade = ($b['shade'] ?? '') === 'dark' ? ' section-dark' : '';
     $pad   = ($i++ % 2 === 1 && $type !== 'hero') ? ' is-alt' : '';
 
@@ -80,7 +82,7 @@ function kv_render_block(array $b, array $ctx = []): void
                     </div>
                     <?php if (!empty($b['facts'])): ?>
                         <ul class="hero-facts" data-stagger>
-                            <?php foreach ($b['facts'] as $f): ?><li class="is-reveal"><?= kv_e($f) ?></li><?php endforeach; ?>
+                            <?php foreach ((array)($b['facts'] ?? []) as $f): ?><li class="is-reveal"><?= kv_e($f) ?></li><?php endforeach; ?>
                         </ul>
                     <?php endif; ?>
                 </div>
@@ -140,7 +142,7 @@ function kv_render_block(array $b, array $ctx = []): void
             <?php if (!empty($b['title']) || !empty($b['kicker'])): kv_section_head($b); endif; ?>
             <div class="container">
                 <div class="numbers-grid" data-stagger>
-                    <?php foreach ($b['items'] ?? [] as $item): ?>
+                    <?php foreach ((array)($b['items'] ?? []) as $item): ?>
                         <div class="number-card is-reveal">
                             <span class="number-value display" data-countup><?= kv_e($item['value'] ?? '') ?></span>
                             <span class="number-label"><?= kv_e($item['label'] ?? '') ?></span>
@@ -157,7 +159,7 @@ function kv_render_block(array $b, array $ctx = []): void
             <?php if (!empty($b['title']) || !empty($b['kicker'])): kv_section_head($b); endif; ?>
             <div class="container">
                 <div class="gallery-grid" data-stagger>
-                    <?php foreach ($b['items'] ?? [] as $gi => $g): ?>
+                    <?php foreach ((array)($b['items'] ?? []) as $gi => $g): ?>
                         <figure class="gallery-item is-reveal<?= ($gi % 3 === 1) ? ' gallery-tall' : '' ?>">
                             <img src="<?= kv_e(kv_data_url((string)($g['image'] ?? 'theme/img/placeholder.svg'))) ?>"
                                  alt="<?= kv_e($g['alt'] ?? '') ?>" loading="lazy"
@@ -176,7 +178,7 @@ function kv_render_block(array $b, array $ctx = []): void
             <?php if (!empty($b['title']) || !empty($b['kicker'])): kv_section_head($b); endif; ?>
             <div class="container">
                 <div class="team-grid" data-stagger>
-                    <?php foreach ($b['items'] ?? [] as $t): ?>
+                    <?php foreach ((array)($b['items'] ?? []) as $t): ?>
                         <article class="team-card is-reveal tilt" data-tilt="5">
                             <div class="team-photo">
                                 <img src="<?= kv_e(kv_data_url((string)($t['image'] ?? 'theme/img/portrait.svg'))) ?>"
@@ -198,7 +200,7 @@ function kv_render_block(array $b, array $ctx = []): void
             <?php if (!empty($b['title']) || !empty($b['kicker'])): kv_section_head($b); endif; ?>
             <div class="container">
                 <ol class="rep-list" data-stagger>
-                    <?php foreach ($b['items'] ?? [] as $i2 => $item): ?>
+                    <?php foreach ((array)($b['items'] ?? []) as $i2 => $item): ?>
                         <li class="rep-item is-reveal">
                             <span class="rep-num display"><?= str_pad((string)($i2 + 1), 2, '0', STR_PAD_LEFT) ?></span>
                             <div class="rep-body">

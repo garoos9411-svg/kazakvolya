@@ -384,10 +384,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $oldCount = count($p['blocks'] ?? []);
         $newBlocks = [];
         for ($i = 0; $i < $oldCount; $i++) {
-            $type = $p['blocks'][$i]['type'] ?? 'text';
+            $type = is_string($p['blocks'][$i]['type'] ?? null) ? $p['blocks'][$i]['type'] : 'text';
             $raw = $_POST['blocks'][$i] ?? null;
-            if (!is_array($raw)) { $newBlocks[] = $p['blocks'][$i]; continue; }
-            $newBlocks[] = a_normalize_block($type, $raw, $p['blocks'][$i]);
+            if (!is_array($raw)) { $newBlocks[] = is_array($p['blocks'][$i]) ? $p['blocks'][$i] : a_blank_block($type); continue; }
+            $old = is_array($p['blocks'][$i]) ? $p['blocks'][$i] : [];
+            $newBlocks[] = a_normalize_block($type, $raw, $old);
         }
         $p['blocks'] = $newBlocks;
         $pages[$pi] = $p;
@@ -1036,7 +1037,9 @@ details summary{cursor:pointer;font-weight:600;color:var(--wine);padding:6px 0}
         </div>
 
         <?php foreach ($p['blocks'] ?? [] as $bi => $b):
-            $type = $b['type'] ?? 'text'; ?>
+            /* защита от повреждённых данных: блок обязан быть массивом */
+            if (!is_array($b)) { $b = a_blank_block('text'); }
+            $type = is_string($b['type'] ?? null) ? $b['type'] : 'text'; ?>
         <div class="block-card" data-bi="<?= $bi ?>">
             <div class="block-head">
                 <span class="tag"><?= a_e(BLOCK_TYPES[$type] ?? $type) ?></span>
@@ -1272,36 +1275,50 @@ details summary{cursor:pointer;font-weight:600;color:var(--wine);padding:6px 0}
  * Рендер полей редактирования одного блока внутри формы страницы.
  * Имена вида blocks[<bi>][field] сохраняются обработчиком page_save.
  */
-function a_render_block_fields(int $bi, array $b): string
+function a_render_block_fields(int $bi, $b): string
 {
-    $type = $b['type'] ?? 'text';
+    /* повреждённый/некорректный блок не должен ронять админку */
+    if (!is_array($b)) { $b = []; }
+    $type = is_string($b['type'] ?? null) ? $b['type'] : 'text';
     $n = "blocks[$bi]";
 
+    /** безопасное приведение значения к скаляру для вывода в поле */
+    $sv = function ($v): string {
+        if (is_scalar($v) || $v === null) return (string)$v;
+        if (is_array($v)) return implode("\n", array_map(fn($x) => is_scalar($x) ? (string)$x : '', $v));
+        return '';
+    };
+
     /** обычное текстовое поле / textarea */
-    $in = function ($k, $lbl, $ph = '', $area = false) use ($b, $n) {
-        $v = a_e($b[$k] ?? '');
+    $in = function ($k, $lbl, $ph = '', $area = false) use ($b, $n, $sv) {
+        $rawV = $b[$k] ?? '';
+        // массивы (facts и т.п.) выводим построчно в textarea
+        if (is_array($rawV) && !$area) { $area = true; }
+        $v = a_e($sv($rawV));
         $f = $area ? "<textarea name=\"$n[$k]\" rows=\"5\" placeholder=\"$ph\">$v</textarea>"
                    : "<input type=\"text\" name=\"$n[$k]\" value=\"$v\" placeholder=\"$ph\">";
         return "<div><label class=\"f\">$lbl</label>$f</div>";
     };
     /** пара «текст кнопки + ссылка» */
-    $btnPair = function ($prefix, $lbl) use ($b, $n) {
-        $c = $b[$prefix] ?? ['text' => '', 'url' => ''];
+    $btnPair = function ($prefix, $lbl) use ($b, $n, $sv) {
+        $c = $b[$prefix] ?? [];
+        if (!is_array($c)) { $c = ['text' => $sv($c), 'url' => '']; }
         return '<div class="grid2">'
-             . '<div><label class="f">' . $lbl . ' — текст</label><input type="text" name="' . $n . '[' . $prefix . '][text]" value="' . a_e($c['text'] ?? '') . '"></div>'
-             . '<div><label class="f">' . $lbl . ' — ссылка</label><input type="text" name="' . $n . '[' . $prefix . '][url]" value="' . a_e($c['url'] ?? '') . '"></div></div>';
+             . '<div><label class="f">' . $lbl . ' — текст</label><input type="text" name="' . $n . '[' . $prefix . '][text]" value="' . a_e($sv($c['text'] ?? '')) . '"></div>'
+             . '<div><label class="f">' . $lbl . ' — ссылка</label><input type="text" name="' . $n . '[' . $prefix . '][url]" value="' . a_e($sv($c['url'] ?? '')) . '"></div></div>';
     };
     /** заголовок секции kicker+title одной строкой */
     $head = $in('kicker', 'Надзаголовок (kicker)') . $in('title', 'Заголовок');
     /** список строк-карточек с возможностью добавлять/удалять строки */
-    $rowsEditor = function (array $fields, array $items, int $cols) use ($n) {
+    $rowsEditor = function (array $fields, $items, int $cols) use ($n, $sv) {
         // $fields: [ключ => placeholder]
+        if (!is_array($items)) { $items = []; }
         $html = '<div class="rows">';
-        $items = array_values($items ?: [[]]);
+        $items = array_values(array_map(fn($r) => is_array($r) ? $r : [], $items ?: [[]]));
         foreach ($items as $row) {
             $html .= '<div class="row-item" style="grid-template-columns:repeat(' . $cols . ',1fr) 60px 60px">';
             foreach ($fields as $k => $ph) {
-                $html .= '<input type="text" name="' . $n . '[items][' . $k . '][]" value="' . a_e($row[$k] ?? '') . '" placeholder="' . a_e($ph) . '">';
+                $html .= '<input type="text" name="' . $n . '[items][' . $k . '][]" value="' . a_e($sv($row[$k] ?? '')) . '" placeholder="' . a_e($ph) . '">';
             }
             $html .= '<button type="button" class="icon-btn" onclick="addRow(this)" title="Добавить строку">＋</button>';
             $html .= '<button type="button" class="icon-btn" onclick="delRow(this)" title="Удалить строку" style="color:#a11235">✕</button>';
@@ -1319,7 +1336,7 @@ function a_render_block_fields(int $bi, array $b): string
             $out .= '<div class="grid2">' . $in('image', 'Картинка (путь)', 'theme/img/hero.svg')
                   . '<div><label class="f">…или загрузить файл</label>'
                   . '<input type="file" name="upload[' . $n . '[image]]" accept="image/*">'
-                  . '<img class="imgprev" style="margin-top:8px" src="' . a_e($b['image'] ?? '') . '" alt=""></div></div>';
+                  . '<img class="imgprev" style="margin-top:8px" src="' . a_e($sv($b['image'] ?? '')) . '" alt=""></div></div>';
             $out .= $in('image_alt', 'Описание картинки (alt)');
             $out .= $btnPair('cta', 'Кнопка 1') . $btnPair('cta2', 'Кнопка 2');
             $out .= '<div class="grid2">' . $in('video_url', 'Видео на фоне (mp4-ссылка)')
@@ -1344,7 +1361,7 @@ function a_render_block_fields(int $bi, array $b): string
             $out .= '<div class="grid2">' . $in('image', 'Картинка', 'theme/img/placeholder.svg')
                   . '<div><label class="f">…или загрузить файл</label>'
                   . '<input type="file" name="upload[' . $n . '[image]]" accept="image/*">'
-                  . '<img class="imgprev" style="margin-top:8px" src="' . a_e($b['image'] ?? '') . '" alt=""></div></div>';
+                  . '<img class="imgprev" style="margin-top:8px" src="' . a_e($sv($b['image'] ?? '')) . '" alt=""></div></div>';
             $out .= $in('image_alt', 'Alt картинки');
             $out .= '<div class="grid2">' . $in('video_url', 'Видео (mp4-ссылка) — показывает плеер вместо фото')
                   . $in('poster', 'Постер видео (путь к картинке)') . '</div>';
