@@ -359,6 +359,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!empty($_FILES['upload']['name'])) {
             a_process_uploads($rawAll = &$_POST['blocks']);
         }
+        /* ЗАЩИТА ОТ ПОТЕРИ КОНТЕНТА: если браузер не прислал поля блоков
+           (например, превышен post_max_size на большой странице), $_POST['blocks']
+           будет пустым — сохраняем страницу как есть, ничего не стирая. */
+        $postBlocks = (isset($_POST['blocks']) && is_array($_POST['blocks'])) ? $_POST['blocks'] : null;
+        if ($postBlocks === null && !empty($pages[$pi]['blocks'])) {
+            kv_flash('error', 'Форма с блоками не получена (возможно, превышен лимит post_max_size). Контент страницы не изменён.');
+            header('Location: admin.php?page-edit=' . $pi); exit;
+        }
         $p = $pages[$pi];
         $p['title'] = $title;
         $p['menu_title'] = a_str($_POST['menu_title'] ?? '', 80) ?: $title;
@@ -612,6 +620,26 @@ function a_menu_depth(array $pages, string $slug): int
 
 function a_normalize_block(string $type, array $raw, array $old): array
 {
+    /* ГАРАНТИЯ ТИПОВ: скалярные поля не могут быть массивами.
+       Если из-за сбоя (битый JSON, обрезанный POST) поле пришло массивом —
+       склеиваем его в строку. Это исключает фатальные ошибки «offset of type
+       string on string» и на фронтенде, и в админке после сохранения. */
+    $scalarize = function (&$arr): void {
+        if (!is_array($arr)) return;
+        static $scalars = ['kicker','title','subtitle','text','html','image','image_alt',
+                           'video_url','poster','author','marquee','note','caption','name',
+                           'role','value','label','meta','price','venue','time','date'];
+        foreach ($arr as $k => &$v) {
+            if (in_array((string)$k, $scalars, true) && is_array($v)) {
+                $v = implode("\n", array_map(fn($x) => is_scalar($x) ? (string)$x : '', $v));
+            } elseif (is_array($v)) {
+                $scalarize($v);
+            }
+        }
+    };
+    $scalarize($raw);
+    $scalarize($old);
+
     $b = $old;
     $b['type'] = $type;
     $b['kicker'] = a_str($raw['kicker'] ?? '', 200);
@@ -1281,6 +1309,14 @@ function a_render_block_fields(int $bi, $b): string
     if (!is_array($b)) { $b = []; }
     $type = is_string($b['type'] ?? null) ? $b['type'] : 'text';
     $n = "blocks[$bi]";
+
+    /* СТРАХОВКА: любые скалярные поля, случайно ставшие массивами или
+       объектами (битый JSON, сбой сохранения), принудительно превращаем
+       обратно в строку — до того, как они попадут в htmlspecialchars. */
+    foreach ($b as $bk => $bv) {
+        if (is_object($bv)) { $b[$bk] = method_exists($bv, '__toString') ? (string)$bv : ''; continue; }
+        if (!is_array($bv) && !is_scalar($bv) && $bv !== null) { $b[$bk] = ''; }
+    }
 
     /** безопасное приведение значения к скаляру для вывода в поле */
     $sv = function ($v): string {

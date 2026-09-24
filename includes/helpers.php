@@ -278,16 +278,16 @@ function kv_url(string $page = '', int $id = 0): string
     return $url;
 }
 
-/** Включён ли ЧПУ (есть ли на сервере mod_rewrite). */
+/**
+ * Включён ли ЧПУ. Определяется АВТОМАТИЧЕСКИ при первом же запросе:
+ * если адрес содержит «index.php/…» — значит Apache не применяет .htaccess
+ * (нет mod_rewrite или AllowOverride None) → переключаем весь сайт на
+ * query-формат ссылок (?page=…). Иначе используем красивые адреса.
+ * Это гарантирует, что меню и ссылки работают в любой конфигурации XAMPP.
+ */
 function kv_is_chpu(): bool
 {
-    static $ok = null;
-    if ($ok === null) {
-        $ok = function_exists('apache_get_modules')
-            ? in_array('mod_rewrite', (array)@apache_get_modules(), true)
-            : !empty($_SERVER['MOD_REWRITE']) || !empty($_SERVER['HTTP_MOD_REWRITE']);
-    }
-    return $ok;
+    return empty($GLOBALS['kv_chpu_off']);
 }
 
 /** Canonical текущего запроса (абсолютный). */
@@ -296,7 +296,9 @@ function kv_canonical(string $page = '', int $id = 0): string
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
     $host   = preg_replace('/[^A-Za-z0-9.\-:]/', '', (string)($_SERVER['HTTP_HOST'] ?? 'localhost'));
     // HTTP_HOST обычно уже содержит порт; если нет и порт нестандартный — добавляем
-    if (!str_contains($host, ':')) {
+    if ($host === '' || $host === 'localhost') {
+        $host = 'localhost';
+    } elseif (!str_contains($host, ':')) {
         $port = (int)($_SERVER['SERVER_PORT'] ?? 80);
         if ($port !== 80 && $port !== 443) {
             $host .= ':' . $port;
