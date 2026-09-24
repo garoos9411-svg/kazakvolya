@@ -21,7 +21,34 @@ function kv_read_json(string $file): array
         return [];
     }
     $data = json_decode($raw, true);
-    return is_array($data) ? $data : [];
+    return is_array($data) ? kv_sanitize_json($data) : [];
+}
+
+/**
+ * Рекурсивно заменяет некорректные структуры: строки вида "{"..."}" или
+ * "["..."]", которые могли попасть в JSON из-за ошибки кодирования, обратно
+ * в массивы. Это защищает админку и фронтенд от падения при повреждённых данных.
+ */
+function kv_sanitize_json(mixed $v): mixed
+{
+    if (is_string($v)) {
+        $s = trim($v);
+        if ((str_starts_with($s, '{') && str_ends_with($s, '}')) ||
+            (str_starts_with($s, '[') && str_ends_with($s, ']'))) {
+            $decoded = json_decode($s, true);
+            if (json_last_error() === JSON_ERROR_NONE && (is_array($decoded))) {
+                // декодируем рекурсивно, чтобы исправить вложенные «строковые» объекты
+                return kv_sanitize_json($decoded);
+            }
+        }
+        return $v;
+    }
+    if (is_array($v)) {
+        foreach ($v as $k => $item) {
+            $v[$k] = kv_sanitize_json($item);
+        }
+    }
+    return $v;
 }
 
 /**
