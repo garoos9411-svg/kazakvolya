@@ -11,7 +11,11 @@
     $canonicalId = (int)($single['id'] ?? 0);
     $ogImage     = kv_clean_url($single['image'] ?? $settings['og_image'] ?? 'theme/img/hero-bg.jpg');
     $scheme      = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    $host        = preg_replace('/[^A-Za-z0-9.\-]/', '', (string)($_SERVER['HTTP_HOST'] ?? ($CONFIG['site']['domain'] ?? 'kazakvolya.ru')));
+    $host        = preg_replace('/[^A-Za-z0-9.\-:]/', '', (string)($_SERVER['HTTP_HOST'] ?? ($CONFIG['site']['domain'] ?? 'kazakvolya.ru')));
+    if ($host !== '' && !str_contains($host, ':')) {
+        $port = (int)($_SERVER['SERVER_PORT'] ?? 80);
+        if ($port !== 80 && $port !== 443) { $host .= ':' . $port; }
+    }
     $ogImageUrl  = str_starts_with($ogImage, 'http') ? $ogImage : $scheme . '://' . $host . kv_base_url() . '/' . ltrim($ogImage, '/');
     ?>
     <title><?= kv_e($pageTitle) ?> — <?= kv_e($settings['site_name'] ?? 'Казачья Воля') ?></title>
