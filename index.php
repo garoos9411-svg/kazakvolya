@@ -119,68 +119,65 @@ $systemPts = [
  */
 function kv_build_menu(array $items): array
 {
-    // нормализуем: slug => item (первое вхождение важнее)
+    // 1. нормализуем: slug => item (первое вхождение важнее)
     $indexed = [];
     foreach ($items as $it) {
         $s = kv_slug((string)($it['slug'] ?? ''));
         if ($s !== '' && !isset($indexed[$s])) {
+            $it['slug']     = $s;
+            $it['parent']   = kv_slug((string)($it['parent'] ?? ''));
             $it['children'] = [];
             $indexed[$s] = $it;
         }
     }
-    $roots   = [];
-    $isRoot  = function (array $item) use (&$isRoot, &$indexed): bool {
-        $p = kv_slug((string)($item['parent'] ?? ''));
-        return $p === '' || !isset($indexed[$p]);
+
+    // 2. валидируем parent-ссылки: родитель должен существовать,
+    //    не быть самой страницей и не образовывать цепочек-циклов.
+    $validParent = function (array $item) use (&$validParent, &$indexed): bool {
+        $p = (string)($item['parent'] ?? '');
+        if ($p === '' || $p === ($item['slug'] ?? '') || !isset($indexed[$p])) return false;
+        // защита от цикла: идём вверх по цепочке родителей (лимит 50)
+        $seen = [$item['slug'] => true];
+        $node = $indexed[$p];
+        for ($i = 0; $i < 50; $i++) {
+            $s = (string)($node['slug'] ?? '');
+            if ($s === '' || isset($seen[$s])) return false; // цикл
+            $seen[$s] = true;
+            $pp = (string)($node['parent'] ?? '');
+            if ($pp === '') return true;                     // дошли до корня — ок
+            if (!isset($indexed[$pp])) return true;          // обрыв = root-родитель, ок
+            $node = $indexed[$pp];
+        }
+        return false;
     };
-    $attach  = function (string $slug, int $depth) use (&$attach, &$indexed, &$roots, &$isRoot): void {
-        $item = $indexed[$slug];
-        $p    = kv_slug((string)($item['parent'] ?? ''));
-        if ($isRoot($item)) {
-            $roots[$slug] = $item;
+
+    // 3. собираем дерево: дети цепляются к валидным родителям
+    $roots = [];
+    foreach ($indexed as $s => $item) {
+        if ($validParent($item)) {
+            $indexed[$item['parent']]['children'][] = $s; // храним slug-и, hydrate позже
         } else {
-            $child = $item; $child['children'] = [];
-            $roots_parent = $p;
-            // находим корень цепочки родителей (глубина ограничена)
-            $node = $indexed[$p];
-            $chain = [$slug];
-            while (!$isRoot($node) && count($chain) < 10) {
-                $chain[] = kv_slug((string)$node['slug']);
-                $node = $indexed[kv_slug((string)$node['parent'])];
-            }
-            $rootSlug = kv_slug((string)$node['slug']);
-            // вставляем по цепочке от корня вниз
-            $ref = &$roots[$rootSlug];
-            for ($i = count($chain) - 2; $i >= 0; $i--) {
-                $cs = kv_slug((string)$chain[$i]);
-                $found = false;
-                foreach ($ref['children'] as &$c) {
-                    if (kv_slug((string)$c['slug']) === $cs) { $ref = &$c; $found = true; break; }
-                }
-                unset($c);
-                if (!$found) {
-                    $ref['children'][] = ['slug' => $cs] + $indexed[$cs];
-                    $lastKey = array_key_last($ref['children']);
-                    $ref = &$ref['children'][$lastKey];
-                }
-            }
-            unset($ref);
+            $roots[] = $s;
         }
-    };
-    foreach (array_keys($indexed) as $s) { $attach($s, 0); }
-    // обход children рекурсивно: подтягиваем актуальные данные узлов
-    $hydrate = function (array $node) use (&$hydrate, &$indexed): array {
-        $s = kv_slug((string)($node['slug'] ?? ''));
-        if (isset($indexed[$s])) {
-            $kids = $node['children'] ?? [];
-            $node = $indexed[$s];
-            $node['children'] = [];
-            foreach ($kids as $k) { $node['children'][] = $hydrate($k); }
+    }
+
+    // 4. materialize-рекурсия с защитой от зацикливания
+    $build = function (string $slug, array $stack) use (&$build, &$indexed): array {
+        $node = $indexed[$slug];
+        if (in_array($slug, $stack, true)) { $node['children'] = []; return $node; }
+        $stack[] = $slug;
+        $kids = [];
+        foreach ($node['children'] as $childSlug) {
+            if (isset($indexed[$childSlug])) {
+                $kids[] = $build($childSlug, $stack);
+            }
         }
+        $node['children'] = $kids;
         return $node;
     };
+
     $out = [];
-    foreach ($roots as $r) { $out[] = $hydrate($r); }
+    foreach ($roots as $r) { $out[] = $build($r, []); }
     return $out;
 }
 
