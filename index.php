@@ -30,6 +30,11 @@ $dataDir = $CONFIG['paths']['data'];
 // --- Разбираем путь: ЧПУ (/afisha, /news/12) или query (?page=afisha&id=12) ---
 $pathInfo = trim((string)parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH), '/');
 // при запуске без .htaccess путь может включать index.php — убираем
+// при запуске без .htaccess (или без AllowOverride) путь включает index.php —
+// значит ЧПУ не работает: переводим все ссылки сайта на query-формат
+if ($pathInfo !== '' && str_starts_with($pathInfo, 'index.php')) {
+    $GLOBALS['kv_chpu_off'] = true;
+}
 $pathInfo = preg_replace('#^index\.php/#', '', $pathInfo);
 $segments = $pathInfo === '' ? [] : explode('/', $pathInfo);
 
@@ -47,6 +52,22 @@ $settings = kv_read_json("$dataDir/settings.json");
 $pages    = kv_read_json("$dataDir/pages.json");
 $news     = kv_read_json("$dataDir/news.json");
 $afisha   = kv_read_json("$dataDir/afisha.json");
+
+// --- Сервисные маршруты: RSS, sitemap, экспорт .ics (до проверки страниц) ---
+$action = $_GET['action'] ?? '';
+if ($pageSlug === 'feed.xml' || $action === 'rss') {
+    require __DIR__ . '/includes/feed.php';
+    exit;
+}
+if ($pageSlug === 'sitemap.xml' || $action === 'sitemap') {
+    require __DIR__ . '/includes/sitemap.php';
+    exit;
+}
+if (($pageSlug === 'afisha' && $action === 'export') || $pageSlug === 'export.ics' || $pageSlug === 'events.ics') {
+    $afisha = kv_read_json("$dataDir/afisha.json");
+    require __DIR__ . '/includes/export-ics.php';
+    exit;
+}
 
 // Ищем нужную страницу в pages.json
 $current = null;
@@ -175,20 +196,17 @@ $latestNews = array_slice($news, 0, 3);
 $ctx = compact('settings', 'pages', 'news', 'afisha', 'menu', 'upcoming', 'latestNews');
 
 // --- Сервисные маршруты: RSS и sitemap (работают и как /feed.xml, и как ?feed) ---
-$action = $_GET['action'] ?? '';
-if ($pageSlug === 'feed.xml' || $action === 'rss') {
-    require __DIR__ . '/includes/feed.php';
-    exit;
-}
-if ($pageSlug === 'sitemap.xml' || $action === 'sitemap') {
-    require __DIR__ . '/includes/sitemap.php';
-    exit;
-}
-
 // --- Дальнейшая маршрутизация ---
 $systemPage = __DIR__ . '/includes/' . $pageSlug . '.php';
 if (in_array($pageSlug, $systemSlugs, true) && is_file($systemPage)) {
     require $systemPage; // эти шаблоны сами подключают header/footer
+    exit;
+}
+// Страница «Контакты» из админки: блоки + снизу форма обратной связи
+if ($pageSlug === 'kontakty') {
+    $kv_contact_logic_only = true;
+    $current = ['slug' => 'kontakty', 'title' => $current['title'] ?? 'Контакты', 'blocks' => $current['blocks'] ?? []];
+    require __DIR__ . '/includes/contact.php'; // сам подключит header, блоки, форму и footer
     exit;
 }
 

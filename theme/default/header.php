@@ -35,9 +35,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Inter:wght@400;500;600;700&display=swap&subset=cyrillic" rel="stylesheet">
 
-    <link rel="stylesheet" href="theme/css/style.min.css?v=8">
-    <link rel="icon" href="theme/img/favicon.svg" type="image/svg+xml">
-    <link rel="apple-touch-icon" href="theme/img/favicon.svg">
+    <link rel="stylesheet" href="<?= kv_e(kv_base_url()) ?>/theme/css/style.min.css?v=10">
+    <link rel="icon" href="<?= kv_e(kv_base_url()) ?>/theme/img/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="<?= kv_e(kv_base_url()) ?>/theme/img/favicon.svg">
 
     <script>document.documentElement.className+=' js-ready js-enabled';</script>
 </head>

@@ -58,7 +58,7 @@ function kv_render_block(array $b, array $ctx = []): void
             <?php else: ?>
             <!-- Слоистый «оживший» фон: кинематографичное фото (Ken Burns) + сетка + орбы -->
             <?php if (!empty($b['image'])): ?>
-                <img class="hero-bg-static" src="<?= kv_e($b['image']) ?>" alt="" aria-hidden="true">
+                <img class="hero-bg-static" src="<?= kv_e(kv_data_url((string)($b['image'] ?? ''))) ?>" alt="" aria-hidden="true">
             <?php endif; ?>
             <div class="hero-grid" aria-hidden="true"></div>
             <?php endif; ?>
@@ -86,7 +86,7 @@ function kv_render_block(array $b, array $ctx = []): void
                 </div>
                 <div class="hero-media">
                     <div class="media-frame floaty tilt" data-tilt="6">
-                        <img src="<?= kv_e($b['image'] ?? 'theme/img/hero.svg') ?>"
+                        <img src="<?= kv_e(kv_data_url((string)($b['image'] ?? 'theme/img/hero.svg'))) ?>"
                              alt="<?= kv_e($b['image_alt'] ?? 'Ансамбль «Казачья Воля»') ?>"
                              width="900" height="1100" fetchpriority="high">
                     </div>
@@ -159,7 +159,7 @@ function kv_render_block(array $b, array $ctx = []): void
                 <div class="gallery-grid" data-stagger>
                     <?php foreach ($b['items'] ?? [] as $gi => $g): ?>
                         <figure class="gallery-item is-reveal<?= ($gi % 3 === 1) ? ' gallery-tall' : '' ?>">
-                            <img src="<?= kv_e($g['image'] ?? 'theme/img/placeholder.svg') ?>"
+                            <img src="<?= kv_e(kv_data_url((string)($g['image'] ?? 'theme/img/placeholder.svg'))) ?>"
                                  alt="<?= kv_e($g['alt'] ?? '') ?>" loading="lazy"
                                  data-full="<?= kv_e($g['image'] ?? 'theme/img/placeholder.svg') ?>">
                             <?php if (!empty($g['caption'])): ?><figcaption><span><?= kv_e($g['caption']) ?></span></figcaption><?php endif; ?>
@@ -179,7 +179,7 @@ function kv_render_block(array $b, array $ctx = []): void
                     <?php foreach ($b['items'] ?? [] as $t): ?>
                         <article class="team-card is-reveal tilt" data-tilt="5">
                             <div class="team-photo">
-                                <img src="<?= kv_e($t['image'] ?? 'theme/img/portrait.svg') ?>"
+                                <img src="<?= kv_e(kv_data_url((string)($t['image'] ?? 'theme/img/portrait.svg'))) ?>"
                                      alt="<?= kv_e($t['name'] ?? '') ?>" loading="lazy">
                             </div>
                             <h3 class="team-name display"><?= kv_e($t['name'] ?? '') ?></h3>
@@ -333,7 +333,7 @@ function kv_render_block(array $b, array $ctx = []): void
                 <div class="news-grid" data-stagger>
                     <?php foreach ($ctx['latestNews'] as $n): ?>
                         <a class="news-card is-reveal" href="<?= kv_e(kv_url('news', (int)($n['id'] ?? 0))) ?>">
-                            <img src="<?= kv_e($n['image'] ?? 'theme/img/placeholder.svg') ?>"
+                            <img src="<?= kv_e(kv_data_url((string)($n['image'] ?? 'theme/img/placeholder.svg'))) ?>"
                                  alt="<?= kv_e($n['image_alt'] ?? '') ?>" loading="lazy">
                             <div class="news-body">
                                 <time class="news-date" datetime="<?= kv_e($n['date'] ?? '') ?>"><?= kv_date_ru($n['date'] ?? '') ?></time>
@@ -361,7 +361,7 @@ function kv_render_block(array $b, array $ctx = []): void
                                preload="none" playsinline controls
                                aria-label="<?= kv_e($b['image_alt'] ?? 'Видео') ?>"></video>
                     <?php else: ?>
-                        <img src="<?= kv_e($b['image'] ?? 'theme/img/placeholder.svg') ?>"
+                        <img src="<?= kv_e(kv_data_url((string)($b['image'] ?? 'theme/img/placeholder.svg'))) ?>"
                              alt="<?= kv_e($b['image_alt'] ?? '') ?>" loading="lazy">
                     <?php endif; ?>
                 </div>

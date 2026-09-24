@@ -364,6 +364,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $p['menu_title'] = a_str($_POST['menu_title'] ?? '', 80) ?: $title;
         $p['slug'] = $slug;
         $p['visible'] = !empty($_POST['visible']);
+        // Родительский пункт меню (для вложенных выпадающих списков).
+        $parent = a_str($_POST['parent'] ?? '', 120);
+        if ($parent !== '' && $parent !== $slug) {
+            $allSlugs = array_map(fn($x) => $x['slug'] ?? '', $pages);
+            if (in_array($parent, $allSlugs, true)) {
+                // защита от циклов: родитель не может быть потомком самой страницы
+                $desc = a_menu_descendants($pages, $slug);
+                if (!in_array($parent, $desc, true)) {
+                    $p['parent'] = $parent;
+                } else {
+                    unset($p['parent']);
+                    kv_flash('error', 'Нельзя сделать родителем собственную подстраницу — выбор сброшен.');
+                }
+            }
+        } else {
+            unset($p['parent']);
+        }
         $oldCount = count($p['blocks'] ?? []);
         $newBlocks = [];
         for ($i = 0; $i < $oldCount; $i++) {
@@ -565,6 +582,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
  * Приведение «сырых» данных формы блока к безопасному виду.
  * $old — прежнее содержимое блока (для полей, которые не отправлялись).
  */
+/** Все slug'и потомков страницы (рекурсивно, с защитой от циклов). */
+function a_menu_descendants(array $pages, string $slug): array
+{
+    $out = []; $seen = [$slug => true];
+    for ($changed = true; $changed; ) {
+        $changed = false;
+        foreach ($pages as $p) {
+            $par = (string)($p['parent'] ?? '');
+            $s   = (string)($p['slug'] ?? '');
+            if ($s !== '' && isset($seen[$par]) && !isset($seen[$s])) { $seen[$s] = true; $out[] = $s; $changed = true; }
+        }
+    }
+    return $out;
+}
+
+/** Глубина страницы в дереве меню (0 = верхний уровень). */
+function a_menu_depth(array $pages, string $slug): int
+{
+    $bySlug = [];
+    foreach ($pages as $p) { $bySlug[$p['slug'] ?? ''] = $p; }
+    $d = 0; $seen = [];
+    while (isset($bySlug[$slug]) && !empty($bySlug[$slug]['parent']) && !isset($seen[$slug]) && $d < 10) {
+        $seen[$slug] = true; $slug = (string)$bySlug[$slug]['parent']; $d++;
+    }
+    return $d;
+}
+
 function a_normalize_block(string $type, array $raw, array $old): array
 {
     $b = $old;
@@ -969,10 +1013,26 @@ details summary{cursor:pointer;font-weight:600;color:var(--wine);padding:6px 0}
                 <div><label class="f">URL (slug)<?= ($p['slug'] ?? '') === 'home' ? ' — главная, не меняется' : '' ?></label>
                      <input type="text" name="slug" value="<?= a_e($p['slug']) ?>" <?= ($p['slug'] ?? '') === 'home' ? 'readonly style="opacity:.6"' : '' ?>></div>
             </div>
-            <label style="display:flex;gap:8px;align-items:center;margin-top:10px">
-                <input type="checkbox" style="width:auto" name="visible" value="1" <?= !empty($p['visible'])?'checked':'' ?>>
-                Показывать в главном меню
-            </label>
+            <div class="grid3" style="margin-top:10px">
+                <div>
+                    <label class="f">Родительский пункт меню</label>
+                    <select name="parent">
+                        <option value="">— верхний уровень —</option>
+                        <?php foreach ($pages as $j => $opt):
+                            if ($j === $pi) continue;
+                            if (in_array($opt['slug'], a_menu_descendants($pages, $p['slug'] ?? ''), true)) continue; ?>
+                            <option value="<?= a_e($opt['slug']) ?>" <?= (($p['parent'] ?? '') === ($opt['slug'] ?? '')) ? 'selected' : '' ?>>
+                                <?= a_e(str_repeat('— ', min(3, a_menu_depth($pages, $opt['slug'] ?? '')))) . a_e($opt['menu_title'] ?? $opt['title'] ?? '') ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <small class="hint">Страница появится в выпадающем списке выбранного пункта меню.</small>
+                </div>
+                <label style="display:flex;gap:8px;align-items:center;margin-top:26px">
+                    <input type="checkbox" style="width:auto" name="visible" value="1" <?= !empty($p['visible'])?'checked':'' ?>>
+                    Показывать в главном меню
+                </label>
+            </div>
         </div>
 
         <?php foreach ($p['blocks'] ?? [] as $bi => $b):
