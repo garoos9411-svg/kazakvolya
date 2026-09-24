@@ -237,6 +237,10 @@ function kv_base_url(): string
 function kv_url(string $page = '', int $id = 0): string
 {
     $base = kv_base_url();
+    if (!kv_is_chpu()) { // нет mod_rewrite — работаем через index.php?page=…
+        if ($page === '' || $page === 'home') return $base . '/index.php';
+        return $base . '/index.php?page=' . rawurlencode($page) . ($id > 0 ? '&id=' . $id : '');
+    }
     if ($page === '' || $page === 'home') {
         return $base . '/';
     }
@@ -245,6 +249,18 @@ function kv_url(string $page = '', int $id = 0): string
         $url .= '/' . $id;
     }
     return $url;
+}
+
+/** Включён ли ЧПУ (есть ли на сервере mod_rewrite). */
+function kv_is_chpu(): bool
+{
+    static $ok = null;
+    if ($ok === null) {
+        $ok = function_exists('apache_get_modules')
+            ? in_array('mod_rewrite', (array)@apache_get_modules(), true)
+            : !empty($_SERVER['MOD_REWRITE']) || !empty($_SERVER['HTTP_MOD_REWRITE']);
+    }
+    return $ok;
 }
 
 /** Canonical текущего запроса (абсолютный). */
@@ -278,8 +294,9 @@ function kv_data_url(string $url): string
         return $u;
     }
     // старый query-формат → ЧПУ
-    if (preg_match('#^(?:index\.php\?)?page=([a-z0-9\-]+)(?:&(?:amp;)?id=(\d+))?#i', $u, $m)) {
-        return kv_url($m[1], (int)($m[2] ?? 0));
+    if (preg_match('#(?:^|[/?&])page=([a-z0-9_-]+)#i', $u, $m)) {
+        $id = preg_match('#[?&](?:amp;)?id=(\d+)#i', $u, $mi) ? (int)$mi[1] : 0;
+        return kv_url(kv_slug($m[1]), $id);
     }
     // якорь или абсолютный путь — не трогаем
     if ($u[0] === '#' || $u[0] === '/') {

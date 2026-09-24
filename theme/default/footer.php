@@ -80,6 +80,6 @@
     <button class="lb-nav lb-next" id="lbNext" aria-label="Следующее">›</button>
 </div>
 
-<script src="theme/js/script.min.js?v=8" defer></script>
+<script src="<?= kv_e(kv_base_url()) ?>/theme/js/script.min.js?v=10" defer></script>
 </body>
 </html>
